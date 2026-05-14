@@ -1,5 +1,4 @@
 import tkinter as tk
-from tkinter import messagebox, simpledialog
 import sys
 import os
 import base64
@@ -14,10 +13,19 @@ class SecureChatApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Secure Chat Application")
-        self.root.geometry("400x500")
+        self.root.geometry("450x600")
+        
+        # Custom Dark Theme Colors
+        self.bg_color = "#2E3440"
+        self.fg_color = "#D8DEE9"
+        self.entry_bg = "#4C566A"
+        self.accent_color = "#88C0D0"
+        
+        self.root.configure(bg=self.bg_color)
+        self.main_frame = None
 
         self.network = NetworkClient()
-        self.network.set_receive_callback(self.handle_server_message)
+        self.network.set_receive_callback(lambda res: self.root.after(0, self.handle_server_message, res))
         
         # Crypto state
         self.private_key = None
@@ -28,6 +36,32 @@ class SecureChatApp:
         self.current_chat_user = None
 
         self.setup_login_ui()
+        
+        # Start auto-connection in background
+        import threading
+        threading.Thread(target=self.auto_connect, daemon=True).start()
+
+    def create_label(self, parent, text, **kwargs):
+        font = kwargs.pop('font', ("Helvetica", 14))
+        fg = kwargs.pop('fg', self.fg_color)
+        return tk.Label(parent, text=text, bg=self.bg_color, fg=fg, font=font, **kwargs)
+
+    def create_entry(self, parent, **kwargs):
+        return tk.Entry(parent, bg=self.entry_bg, fg=self.fg_color, insertbackground=self.fg_color, highlightbackground=self.bg_color, highlightthickness=1, font=("Helvetica", 14), **kwargs)
+
+    def create_button(self, parent, text, command, **kwargs):
+        return tk.Button(parent, text=text, command=command, highlightbackground=self.bg_color, font=("Helvetica", 14), **kwargs)
+
+    def show_message(self, title, msg, is_error=False):
+        print(f"SHOW_MESSAGE -> Title: {title} | Msg: {msg}")
+        top = tk.Toplevel(self.root)
+        top.title(title)
+        top.geometry("350x200")
+        top.configure(bg=self.bg_color)
+        
+        color = "#BF616A" if is_error else "#A3BE8C"
+        tk.Label(top, text=msg, bg=self.bg_color, fg=color, font=("Helvetica", 14), wraplength=300, justify=tk.CENTER).pack(pady=(30, 20), expand=True)
+        self.create_button(top, "OK", command=top.destroy).pack(pady=(0, 20))
 
     def handle_server_message(self, response):
         action = response.get('action')
@@ -70,40 +104,61 @@ class SecureChatApp:
         elif response.get('status') == 'success':
             msg = response.get('message', '')
             if msg:
-                messagebox.showinfo("Success", msg)
+                self.show_message("Success", msg)
 
         elif response.get('status') == 'error':
-            messagebox.showerror("Error", response.get('message', 'Unknown error'))
+            self.show_message("Error", response.get('message', 'Unknown error'), is_error=True)
 
     def setup_login_ui(self):
         self.clear_window()
         
-        tk.Label(self.root, text="Login / Register", font=("Helvetica", 16)).pack(pady=20)
+        self.create_label(self.main_frame, "Secure Chat", font=("Helvetica", 24, "bold"), fg=self.accent_color).pack(pady=(20, 30))
         
-        tk.Label(self.root, text="Username").pack()
-        self.username_entry = tk.Entry(self.root)
-        self.username_entry.pack(pady=5)
+        self.create_label(self.main_frame, "Username").pack(anchor=tk.W, padx=20)
+        self.username_entry = self.create_entry(self.main_frame)
+        self.username_entry.pack(pady=(0, 15), padx=20, fill=tk.X)
         
-        tk.Label(self.root, text="Password").pack()
-        self.password_entry = tk.Entry(self.root, show="*")
-        self.password_entry.pack(pady=5)
+        self.create_label(self.main_frame, "Password").pack(anchor=tk.W, padx=20)
+        self.password_entry = self.create_entry(self.main_frame, show="*")
+        self.password_entry.pack(pady=(0, 15), padx=20, fill=tk.X)
         
-        tk.Button(self.root, text="Login", command=self.login).pack(pady=5)
-        tk.Button(self.root, text="Register", command=self.register).pack(pady=5)
+        self.create_label(self.main_frame, "2FA Token (Leave blank if registering)").pack(anchor=tk.W, padx=20)
+        self.totp_entry = self.create_entry(self.main_frame)
+        self.totp_entry.pack(pady=(0, 25), padx=20, fill=tk.X)
         
-        tk.Button(self.root, text="Connect", command=self.connect_to_server).pack(pady=20)
-        self.conn_label = tk.Label(self.root, text="Not Connected", fg="red")
-        self.conn_label.pack()
+        btn_frame = tk.Frame(self.main_frame, bg=self.bg_color)
+        btn_frame.pack(fill=tk.X, padx=20)
+        
+        self.create_button(btn_frame, "Login", command=self.login).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 5))
+        self.create_button(btn_frame, "Register", command=self.register).pack(side=tk.RIGHT, expand=True, fill=tk.X, padx=(5, 0))
+        
+        self.conn_label = self.create_label(self.main_frame, "Not Connected", fg="#BF616A")
+        self.conn_label.pack(pady=(30, 5))
+        
+        self.retry_btn = self.create_button(self.main_frame, "Retry Connection", command=lambda: __import__('threading').Thread(target=self.auto_connect, daemon=True).start())
+        # We don't pack retry_btn yet; only if it fails to connect
 
-    def connect_to_server(self):
-        self.conn_label.config(text="Searching for server on network...", fg="blue")
-        self.root.update()
-        
-        if self.network.connect():
-            self.conn_label.config(text=f"Connected to Server ({self.network.host})", fg="green")
-        else:
-            self.conn_label.config(text="Not Connected", fg="red")
-            messagebox.showerror("Error", "Could not connect to server.")
+    def auto_connect(self):
+        def start_search():
+            try:
+                self.conn_label.config(text="Searching for server on network...", fg="#81A1C1")
+                self.retry_btn.pack_forget()
+            except tk.TclError:
+                pass
+                
+        def on_result(success):
+            try:
+                if success:
+                    self.conn_label.config(text=f"Connected to Server ({self.network.host})", fg="#A3BE8C")
+                else:
+                    self.conn_label.config(text="Not Connected", fg="#BF616A")
+                    self.retry_btn.pack(pady=5)
+            except tk.TclError:
+                pass
+                
+        self.root.after(0, start_search)
+        success = self.network.connect()
+        self.root.after(0, on_result, success)
 
     def generate_keys_if_needed(self):
         if not self.private_key:
@@ -111,11 +166,15 @@ class SecureChatApp:
 
     def register(self):
         if not self.network.connected:
-            messagebox.showerror("Error", "Connect to server first!")
+            self.show_message("Error", "Connect to server first!", is_error=True)
             return
             
-        username = self.username_entry.get()
+        username = self.username_entry.get().strip()
         password = self.password_entry.get()
+        
+        if not username or not password:
+            self.show_message("Missing Info", "Please enter both a username and a password to register.", is_error=True)
+            return
         
         self.generate_keys_if_needed()
         pub_key_pem = CryptoUtils.serialize_public_key(self.public_key).decode('utf-8')
@@ -126,18 +185,23 @@ class SecureChatApp:
             'password': password,
             'public_key': pub_key_pem
         })
-        messagebox.showinfo("Info", "Registration request sent. Check server logs if unsure. You can try logging in now.")
+        self.show_message("Info", "Registration request sent. Check server logs if unsure. You can try logging in now.")
 
     def login(self):
         if not self.network.connected:
-            messagebox.showerror("Error", "Connect to server first!")
+            self.show_message("Error", "Connect to server first!", is_error=True)
             return
             
-        self.username = self.username_entry.get()
+        self.username = self.username_entry.get().strip()
         password = self.password_entry.get()
+        totp_token = self.totp_entry.get().strip()
         
-        totp_token = simpledialog.askstring("2FA", "Enter your 6-digit Authenticator code:")
+        if not self.username or not password:
+            self.show_message("Missing Info", "Please enter both your username and password to login.", is_error=True)
+            return
+            
         if not totp_token:
+            self.show_message("Missing 2FA", "Please enter your 6-digit Authenticator code. If you haven't registered yet, click Register instead!", is_error=True)
             return
         
         self.network.send_request({
@@ -146,19 +210,16 @@ class SecureChatApp:
             'password': password,
             'totp_token': totp_token
         })
-        
-        self.generate_keys_if_needed()
-        self.setup_user_selection_ui()
 
     def setup_user_selection_ui(self):
         self.clear_window()
-        tk.Label(self.root, text=f"Welcome {self.username}", font=("Helvetica", 16)).pack(pady=20)
-        tk.Label(self.root, text="Enter username to chat with:").pack()
+        self.create_label(self.main_frame, f"Welcome {self.username}", font=("Helvetica", 20, "bold"), fg=self.accent_color).pack(pady=(20, 30))
+        self.create_label(self.main_frame, "Enter username to chat with:").pack(anchor=tk.W, padx=20)
         
-        self.target_entry = tk.Entry(self.root)
-        self.target_entry.pack(pady=5)
+        self.target_entry = self.create_entry(self.main_frame)
+        self.target_entry.pack(pady=(0, 20), padx=20, fill=tk.X)
         
-        tk.Button(self.root, text="Start Chat", command=self.start_chat).pack(pady=10)
+        self.create_button(self.main_frame, "Start Chat", command=self.start_chat).pack(fill=tk.X, padx=20)
 
     def start_chat(self):
         target = self.target_entry.get()
@@ -176,20 +237,23 @@ class SecureChatApp:
     def setup_chat_ui(self):
         self.clear_window()
         
-        tk.Label(self.root, text=f"Chat with {self.current_chat_user}", font=("Helvetica", 14)).pack(pady=5)
+        self.create_label(self.main_frame, f"Chatting with {self.current_chat_user}", font=("Helvetica", 16, "bold"), fg=self.accent_color).pack(pady=(0, 10))
         
-        self.chat_area = tk.Text(self.root, state='disabled', width=45, height=20)
-        self.chat_area.pack(pady=5, padx=5)
+        self.chat_area = tk.Text(self.main_frame, state='disabled', width=45, height=20, font=("Helvetica", 13), bg=self.entry_bg, fg=self.fg_color, insertbackground=self.fg_color, highlightbackground=self.bg_color)
+        self.chat_area.pack(pady=5, padx=10, fill=tk.BOTH, expand=True)
         
         # Data Loss Prevention (DLP): Disable Copying
         self.chat_area.bind("<Control-c>", lambda e: "break")
         self.chat_area.bind("<Command-c>", lambda e: "break")
         self.chat_area.bind("<Button-3>", lambda e: "break") # Disable right click
         
-        self.msg_entry = tk.Entry(self.root, width=35)
-        self.msg_entry.pack(side=tk.LEFT, padx=5, pady=5)
+        bottom_frame = tk.Frame(self.main_frame, bg=self.bg_color)
+        bottom_frame.pack(fill=tk.X, padx=10, pady=(10, 10))
         
-        tk.Button(self.root, text="Send", command=self.send_message).pack(side=tk.RIGHT, padx=5, pady=5)
+        self.msg_entry = self.create_entry(bottom_frame)
+        self.msg_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
+        
+        self.create_button(bottom_frame, "Send", command=self.send_message).pack(side=tk.RIGHT)
 
     def display_message(self, text):
         if hasattr(self, 'chat_area'):
@@ -205,7 +269,7 @@ class SecureChatApp:
             
         aes_key = self.aes_keys.get(self.current_chat_user)
         if not aes_key:
-            messagebox.showerror("Error", "No AES key established for this user.")
+            self.show_message("Error", "No AES key established for this user.", is_error=True)
             return
             
         encrypted_bytes = CryptoUtils.encrypt_aes(aes_key, msg.encode('utf-8'))
@@ -223,6 +287,8 @@ class SecureChatApp:
     def clear_window(self):
         for widget in self.root.winfo_children():
             widget.destroy()
+        self.main_frame = tk.Frame(self.root, bg=self.bg_color)
+        self.main_frame.pack(fill=tk.BOTH, expand=True)
 
 if __name__ == "__main__":
     root = tk.Tk()

@@ -28,6 +28,9 @@ class NetworkClient:
             udp_sock.close()
 
     def connect(self):
+        if self.connected:
+            return True
+            
         try:
             # Try to discover server
             discovered_ip = self.discover_server()

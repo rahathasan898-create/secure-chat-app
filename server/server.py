@@ -11,6 +11,7 @@ class SecureChatServer:
         self.port = port
         self.db = Database()
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_socket.bind((self.host, self.port))
         self.server_socket.listen(5)
         # Map username to client socket for online users
@@ -62,6 +63,7 @@ class SecureChatServer:
 
                 request = json.loads(payload.decode('utf-8'))
                 action = request.get('action')
+                print(f"[Server] Received action: {action} from {client_socket.getpeername()}")
 
                 response = {}
 
@@ -72,9 +74,13 @@ class SecureChatServer:
                         request['public_key']
                     )
                     if success:
-                        response = {'status': 'success', 'message': f'Registration successful. Your 2FA Secret is: {totp_secret}\nSave this or add to Google Authenticator!'}
+                        response = {
+                            'status': 'success', 
+                            'totp_secret': totp_secret, 
+                            'message': f'Registration successful. Your 2FA Secret is: {totp_secret}\nSave this or add to Google Authenticator!'
+                        }
                     else:
-                        response = {'status': 'error', 'message': 'Username exists'}
+                        response = {'status': 'error', 'message': 'That username is already taken! Please choose another one.'}
 
                 elif action == 'LOGIN':
                     auth_res = self.db.authenticate_user(request['username'], request['password'])
@@ -89,9 +95,9 @@ class SecureChatServer:
                             self.clients[current_user] = client_socket
                             response = {'status': 'success', 'message': f'Login successful. Role: {role}'}
                         else:
-                            response = {'status': 'error', 'message': 'Invalid 2FA token'}
+                            response = {'status': 'error', 'message': 'Invalid 6-digit 2FA token. Please check your authenticator code!'}
                     else:
-                        response = {'status': 'error', 'message': 'Invalid credentials'}
+                        response = {'status': 'error', 'message': "Login Failed. Please make sure you have Registered first, or check your password!"}
 
                 elif action == 'GET_KEY':
                     pub_key = self.db.get_user_public_key(request['target_user'])
@@ -116,7 +122,7 @@ class SecureChatServer:
                                     'from': current_user,
                                     'encrypted_content': request['encrypted_content']
                                 }
-                                self._send_data(target_socket, fwd_msg)
+                                self.send_response(target_socket, fwd_msg)
                             response = {'status': 'success', 'message': 'Message sent'}
                         else:
                             response = {'status': 'error', 'message': 'Failed to send'}
@@ -124,7 +130,7 @@ class SecureChatServer:
                         response = {'status': 'error', 'message': 'Not logged in'}
 
                 # Send response back to the client
-                self._send_data(client_socket, response)
+                self.send_response(client_socket, response)
 
         except Exception as e:
             print(f"Error handling client {current_user}: {e}")
@@ -133,9 +139,13 @@ class SecureChatServer:
                 del self.clients[current_user]
             client_socket.close()
 
-    def _send_data(self, sock, data):
-        payload = json.dumps(data).encode('utf-8')
-        sock.sendall(len(payload).to_bytes(4, 'big') + payload)
+    def send_response(self, client_socket, response):
+        try:
+            print(f"[Server] Sending response: {response.get('action', response.get('status'))} to {client_socket.getpeername()}")
+            payload = json.dumps(response).encode('utf-8')
+            client_socket.sendall(len(payload).to_bytes(4, 'big') + payload)
+        except Exception as e:
+            print(f"[Server] Send Error: {e}")
 
 if __name__ == "__main__":
     server = SecureChatServer()
