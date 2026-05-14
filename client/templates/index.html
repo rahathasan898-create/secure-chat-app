@@ -461,7 +461,7 @@
                     if (currentState.username !== state.username) {
                         showScreen('app-shell');
                         document.getElementById('my-username').innerText = state.username;
-                        document.getElementById('my-avatar').innerText = state.username.charAt(0).toUpperCase() + '<div class="online-dot"></div>';
+                        document.getElementById('my-avatar').innerHTML = state.username.charAt(0).toUpperCase() + '<div class="online-dot"></div>';
                         document.getElementById('profile-sheet-name').innerText = state.username;
                         document.getElementById('profile-sheet-avatar').innerText = state.username.charAt(0).toUpperCase();
                     }
