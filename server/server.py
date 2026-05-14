@@ -129,6 +129,15 @@ class SecureChatServer:
                     else:
                         response = {'status': 'error', 'message': 'Not logged in'}
 
+                elif action == 'GET_ALL_USERS':
+                    all_users = self.db.get_all_users()
+                    online_users = list(self.clients.keys())
+                    response = {
+                        'status': 'success',
+                        'all_users': all_users,
+                        'online_users': online_users
+                    }
+
                 # Send response back to the client
                 self.send_response(client_socket, response)
 

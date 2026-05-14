@@ -93,3 +93,11 @@ class Database:
             ''', (sender_id, receiver_id, encrypted_content))
             conn.commit()
             return True
+
+    def get_all_users(self):
+        """Returns a list of all registered usernames."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT username FROM users')
+            results = cursor.fetchall()
+            return [row[0] for row in results]

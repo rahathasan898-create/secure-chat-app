@@ -46,7 +46,9 @@ def get_session_state():
             'last_totp': None,
             'target_user': None,
             'chat_active': False,
-            'contacts': set()
+            'contacts': set(),
+            'all_users': [],
+            'online_users': []
         }
     return session_id, sessions[session_id]
 
@@ -89,7 +91,13 @@ def _handle_server_message_for_session(session_id, response):
             # Check if this is a login success to transition state
             if "Login successful" in msg:
                 state['username'] = state.get('_temp_username')
+                # Fetch users right after login
+                state['network'].send_request({'action': 'GET_ALL_USERS'})
             state['last_success'] = msg
+            
+    elif response.get('status') == 'success' and 'all_users' in response:
+        state['all_users'] = response['all_users']
+        state['online_users'] = response['online_users']
             
     elif response.get('status') == 'error':
         state['last_error'] = response.get('message', 'Unknown error')
@@ -117,7 +125,9 @@ def get_status():
         'error': state['last_error'],
         'success': state['last_success'],
         'totp': state['last_totp'],
-        'contacts': list(state['contacts'])
+        'contacts': list(state['contacts']),
+        'all_users': state['all_users'],
+        'online_users': state['online_users']
     })
     response.set_cookie('session_id', session_id)
     return response
@@ -128,6 +138,13 @@ def clear_msgs():
     state['last_error'] = None
     state['last_success'] = None
     state['last_totp'] = None
+    return jsonify({'status': 'ok'})
+
+@app.route('/api/refresh_users', methods=['POST'])
+def refresh_users():
+    session_id, state = get_session_state()
+    if state['network'].connected and state['username']:
+        state['network'].send_request({'action': 'GET_ALL_USERS'})
     return jsonify({'status': 'ok'})
 
 @app.route('/api/connect', methods=['POST'])

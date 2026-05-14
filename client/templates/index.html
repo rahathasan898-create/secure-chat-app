@@ -232,7 +232,9 @@
             target_user: null,
             chat_active: false,
             messagesLength: 0,
-            contactsLength: -1
+            contactsLength: -1,
+            all_users: [],
+            online_users: []
         };
 
         // UI Routing
@@ -392,30 +394,44 @@
             document.getElementById('messages-area').innerHTML = '';
         }
 
-        function renderContacts(contacts, targetUser) {
+        function renderContacts(allUsers, onlineUsers, contacts, targetUser) {
             const list = document.getElementById('contact-list');
             list.innerHTML = '';
-            contacts.forEach(c => {
+            
+            // We show all registered users, prioritizing those we've contacted or are online
+            allUsers.forEach(c => {
+                if (c === currentState.username) return; // Don't show self in list
+                
+                const isOnline = onlineUsers.includes(c);
+                const hasContacted = contacts.includes(c);
+                
                 const div = document.createElement('div');
                 div.className = 'chat-item' + (c === targetUser ? ' active' : '');
                 div.onclick = () => selectChat(c);
                 
                 div.innerHTML = `
-                    <div class="avatar">${c.charAt(0).toUpperCase()}</div>
+                    <div class="avatar">
+                        ${c.charAt(0).toUpperCase()}
+                        ${isOnline ? '<div class="online-dot"></div>' : ''}
+                    </div>
                     <div class="chat-item-details">
                         <div class="chat-item-header">
                             <span class="chat-item-name">${c}</span>
                         </div>
-                        <div class="chat-item-preview">Tap to view secure chat</div>
+                        <div class="chat-item-preview">${isOnline ? 'Online now' : 'Offline'}</div>
                     </div>
                 `;
                 list.appendChild(div);
             });
             
-            // Also render online users strip (simulated for now based on contacts)
+            // Render actual online users strip
             const strip = document.getElementById('online-users-strip');
             strip.innerHTML = '';
-            contacts.forEach(c => {
+            
+            let onlineCount = 0;
+            onlineUsers.forEach(c => {
+                if (c === currentState.username) return; // Don't show self
+                onlineCount++;
                 const pill = document.createElement('div');
                 pill.className = 'online-pill';
                 pill.onclick = () => selectChat(c);
@@ -425,6 +441,8 @@
                 `;
                 strip.appendChild(pill);
             });
+            
+            document.querySelector('.online-users-title').innerText = `Online Now (${onlineCount})`;
         }
 
         // Polling loop
@@ -466,9 +484,12 @@
                         document.getElementById('profile-sheet-avatar').innerText = state.username.charAt(0).toUpperCase();
                     }
                     
-                    if (JSON.stringify(state.contacts) !== JSON.stringify(currentState.contacts) || state.target_user !== currentState.target_user) {
-                        renderContacts(state.contacts, state.target_user);
-                        currentState.contacts = state.contacts;
+                    if (JSON.stringify(state.all_users) !== JSON.stringify(currentState.all_users) || 
+                        JSON.stringify(state.online_users) !== JSON.stringify(currentState.online_users) || 
+                        state.target_user !== currentState.target_user) {
+                        renderContacts(state.all_users || [], state.online_users || [], state.contacts || [], state.target_user);
+                        currentState.all_users = state.all_users;
+                        currentState.online_users = state.online_users;
                     }
 
                     if (state.chat_active) {
@@ -536,8 +557,11 @@
         }
 
         setInterval(pollState, 1000);
+        setInterval(() => {
+            if (currentState.username) apiCall('/api/refresh_users', {});
+        }, 3000); // Poll server every 3 seconds for updated users
+        
         window.addEventListener('DOMContentLoaded', () => {
-            // Check initial state
             pollState();
         });
     </script>
