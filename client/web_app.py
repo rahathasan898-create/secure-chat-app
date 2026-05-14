@@ -188,14 +188,17 @@ def login():
         
     state['_temp_username'] = username # Hold temporarily until success
     
+    generate_keys_if_needed(state)
+    pub_key_pem = CryptoUtils.serialize_public_key(state['public_key']).decode('utf-8')
+    
     state['network'].send_request({
         'action': 'LOGIN',
         'username': username,
         'password': password,
-        'totp_token': totp_token
+        'totp_token': totp_token,
+        'public_key': pub_key_pem
     })
     
-    generate_keys_if_needed(state)
     return jsonify({'status': 'ok'})
 
 @app.route('/api/start_chat', methods=['POST'])

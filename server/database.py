@@ -101,3 +101,11 @@ class Database:
             cursor.execute('SELECT username FROM users')
             results = cursor.fetchall()
             return [row[0] for row in results]
+
+    def update_user_public_key(self, username, public_key_pem):
+        """Updates the public key for an existing user."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('UPDATE users SET public_key_pem = ? WHERE username = ?', (public_key_pem, username))
+            conn.commit()
+            return True

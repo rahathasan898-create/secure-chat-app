@@ -90,6 +90,8 @@ class SecureChatServer:
                         
                         totp = pyotp.TOTP(totp_secret)
                         if totp.verify(totp_token):
+                            if 'public_key' in request:
+                                self.db.update_user_public_key(request['username'], request['public_key'])
                             current_user = request['username']
                             current_user_id = user_id
                             self.clients[current_user] = client_socket
