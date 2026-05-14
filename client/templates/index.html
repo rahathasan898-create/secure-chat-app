@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure Chat</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SecureChat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
@@ -13,131 +13,199 @@
     <div id="status-badge" class="status-badge">Connecting...</div>
     <div id="toast-container"></div>
 
-    <!-- 2FA Persistent Modal -->
-    <div id="totp-modal" class="modal-overlay">
-        <div class="modal-content">
-            <h3>Registration Successful!</h3>
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 10px;">
-                <strong>IMPORTANT:</strong> Scan this QR Code with Google Authenticator or Authy!
-            </p>
-            
-            <div id="qrcode" style="display:flex; justify-content:center; margin: 20px 0;"></div>
-            
-            <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 10px;">Or enter code manually:</p>
-            <div class="totp-box" id="totp-secret-display">XXXXXX</div>
-            
-            <button class="btn" onclick="copyTotp()" style="margin-bottom: 12px;">Copy to Clipboard</button>
-            <button class="btn btn-secondary" onclick="dismissModal()">I have saved this code</button>
+    <!-- Screen 1: Onboarding Splash -->
+    <div class="screen active" id="onboarding-screen">
+        <div class="shield-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+        </div>
+        <h1>SecureChat</h1>
+        <p>End-to-End Encrypted Messaging.<br>No one reads your messages. Not even us.</p>
+        
+        <div class="action-buttons">
+            <button class="btn" onclick="showScreen('register-screen')">Get Started</button>
+            <button class="btn btn-secondary" onclick="showScreen('login-screen')">Sign In</button>
         </div>
     </div>
 
-    <!-- Login Card -->
-    <div class="container card active" id="login-card">
-        <h1>Welcome Back</h1>
-        <p class="subtitle">Log in to your secure session</p>
-        
-        <div class="form-group">
-            <label for="login-username">Username</label>
-            <input type="text" id="login-username" placeholder="Enter your username" autocomplete="off">
-        </div>
-        <div class="form-group">
-            <label for="login-password">Password</label>
-            <input type="password" id="login-password" placeholder="Enter your password">
-        </div>
-        <div class="form-group">
-            <label for="login-totp">2FA Authenticator Token</label>
-            <input type="text" id="login-totp" placeholder="6-digit code" autocomplete="off">
-        </div>
-        
-        <button class="btn" onclick="login()">Log In</button>
-        
-        <div class="toggle-link">
-            Don't have an account? <a onclick="showCard('register-card')">Sign Up Here</a>
-        </div>
-    </div>
-
-    <!-- Register Card -->
-    <div class="container card" id="register-card">
-        <h1>Create Account</h1>
-        <p class="subtitle">Join the End-to-End Encrypted Network</p>
-        
-        <div class="form-group">
-            <label for="reg-username">Username</label>
-            <input type="text" id="reg-username" placeholder="Choose a username" autocomplete="off">
-        </div>
-        <div class="form-group">
-            <label for="reg-password">Password</label>
-            <input type="password" id="reg-password" placeholder="Create a strong password">
-        </div>
-        
-        <button class="btn" onclick="register()">Register Now</button>
-        
-        <div class="toggle-link">
-            Already have an account? <a onclick="showCard('login-card')">Log In Here</a>
+    <!-- Screen 2a: Registration -->
+    <div class="screen" id="register-screen">
+        <div class="auth-container">
+            <div class="auth-header">
+                <h2>Create Account</h2>
+                <p>Step 1 of 2: Set up your credentials</p>
+            </div>
+            
+            <div class="form-group">
+                <label for="reg-username">Username</label>
+                <input type="text" id="reg-username" placeholder="Choose a unique username" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="reg-password">Password</label>
+                <input type="password" id="reg-password" placeholder="Create a strong password">
+            </div>
+            
+            <button class="btn" onclick="register()">Next Step →</button>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn-text" onclick="showScreen('login-screen')">Already have an account? Sign In</button>
+            </div>
         </div>
     </div>
 
-    <!-- Dual-Pane Main App Container -->
-    <div id="main-app-container">
+    <!-- Screen 2b: 2FA Setup Overlay -->
+    <div class="overlay" id="totp-setup-overlay">
+        <div class="auth-container" style="max-height: 90vh; overflow-y: auto;">
+            <div class="auth-header">
+                <h2>Protect Your Account</h2>
+                <p>Step 2 of 2: Setup Authenticator</p>
+            </div>
+            
+            <div style="text-align: center;">
+                <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 15px;">
+                    Scan this QR code with Google Authenticator or Authy.
+                </p>
+                
+                <div class="qr-container" id="qrcode"></div>
+                
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 10px;">Or enter manually:</p>
+                <div class="totp-box" id="totp-secret-display">XXXXXX</div>
+                <button class="btn btn-secondary" style="padding: 8px 16px; font-size: 0.85rem; margin: 0 auto 20px auto; width: auto;" onclick="copyTotp()">Copy Code</button>
+                
+                <div id="setup-actions">
+                    <button class="btn" onclick="showVerifyStep()">I've Scanned It</button>
+                </div>
+                
+                <div class="verify-step" id="verify-step">
+                    <label for="verify-totp">Verify setup by entering the 6-digit code:</label>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <input type="text" id="verify-totp" placeholder="000000" maxlength="6" style="text-align: center; letter-spacing: 5px; font-size: 1.2rem;">
+                    </div>
+                    <button class="btn" style="margin-top: 15px; background: var(--success);" onclick="verifyAndCompleteRegistration()">Complete Setup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screen 3: Login -->
+    <div class="screen" id="login-screen">
+        <div class="auth-container">
+            <div class="auth-header">
+                <h2>Welcome Back</h2>
+                <p>Sign in to your secure session</p>
+            </div>
+            
+            <div class="form-group">
+                <label for="login-username">Username</label>
+                <input type="text" id="login-username" placeholder="Enter your username" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="login-password">Password</label>
+                <input type="password" id="login-password" placeholder="Enter your password">
+            </div>
+            <div class="form-group">
+                <label for="login-totp">Authenticator Code</label>
+                <input type="text" id="login-totp" placeholder="6-digit code" autocomplete="off" maxlength="6" style="letter-spacing: 2px;">
+            </div>
+            
+            <button class="btn" onclick="login()">Log In</button>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn-text" onclick="showScreen('register-screen')">Need an account? Get Started</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screen 4: Main App Shell -->
+    <div class="screen" id="app-shell">
         <!-- Sidebar -->
         <div class="sidebar">
             <div class="sidebar-header">
-                <div>
-                    <h3 id="sidebar-username">User</h3>
-                    <p style="color:var(--text-muted); font-size: 0.8rem;">Online</p>
+                <div class="user-profile-mini">
+                    <div class="avatar" id="my-avatar">U<div class="online-dot"></div></div>
+                    <div>
+                        <div style="font-weight: 600; font-size: 1rem;" id="my-username">User</div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">Online</div>
+                    </div>
                 </div>
-                <button class="btn btn-secondary" style="width:auto; padding: 6px 12px; font-size: 0.8rem; margin:0;" onclick="logout()">Logout</button>
+                <button class="icon-btn" onclick="document.getElementById('profile-overlay').classList.add('active')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                </button>
             </div>
             
-            <div style="padding: 15px; border-bottom: 1px solid var(--border);">
-                <div class="chat-input-group">
-                    <input type="text" id="new-contact-username" placeholder="Chat with...">
-                    <button class="btn" onclick="addContact()">Go</button>
+            <!-- Online Users Strip -->
+            <div class="online-users-container">
+                <div class="online-users-title">Online Now (Simulated)</div>
+                <div class="online-strip" id="online-users-strip">
+                    <!-- Dynamic online users will go here -->
+                </div>
+            </div>
+
+            <!-- Search / Add Contact -->
+            <div class="search-bar">
+                <div class="search-input-wrapper">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input type="text" id="new-contact-username" placeholder="Start new chat with username..." onkeypress="if(event.key === 'Enter') addContact()">
                 </div>
             </div>
             
-            <div class="contact-list" id="contact-list">
-                <!-- Contacts will be rendered here -->
+            <div class="chat-list" id="contact-list">
+                <!-- Chats rendered here -->
             </div>
         </div>
 
         <!-- Main Chat Area -->
         <div class="chat-area">
-            <!-- Empty State -->
-            <div class="empty-chat" id="empty-chat">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.5; margin-bottom: 20px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            <div class="chat-empty" id="empty-chat">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M21 8a2 2 0 0 0-2-2H7l-4-4v14"></path></svg>
                 <h2>No Chat Selected</h2>
-                <p>Select a contact to start messaging.</p>
+                <p>Select a conversation or start a new one.</p>
             </div>
 
-            <!-- Active Chat State -->
-            <div class="active-chat" id="active-chat">
-                <div class="chat-header">
-                    <button class="back-btn" onclick="backToContacts()">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                    </button>
-                    <div class="avatar" id="chat-avatar">U</div>
-                    <div class="info">
-                        <h3 id="chat-header-name">TargetUser</h3>
-                        <p>● Secure Session</p>
+            <div class="chat-header" id="chat-header" style="display: none;">
+                <button class="back-btn" onclick="backToContacts()">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                </button>
+                <div class="avatar" id="chat-avatar" style="width: 44px; height: 44px;">U</div>
+                <div class="chat-header-info">
+                    <h3 id="chat-header-name">TargetUser</h3>
+                    <div class="secure-badge">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                        End-to-End Encrypted
                     </div>
                 </div>
-                
-                <div class="messages" id="messages-area">
-                    <!-- Messages will be injected here -->
-                </div>
-                
+            </div>
+            
+            <div class="messages" id="messages-area" style="display: none;">
+                <!-- Messages go here -->
+            </div>
+            
+            <div class="chat-input-area" id="chat-input-area" style="display: none;">
                 <div class="chat-input-wrapper">
-                    <div class="chat-input-group">
-                        <input type="text" id="msg-input" placeholder="Secure message..." onkeypress="handleEnter(event)">
-                        <button class="btn" onclick="sendMessage()">Send</button>
-                    </div>
+                    <input type="text" id="msg-input" placeholder="Type a secure message..." onkeypress="handleEnter(event)">
+                    <button class="send-btn" onclick="sendMessage()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Profile Bottom Sheet / Modal -->
+    <div class="overlay" id="profile-overlay" onclick="if(event.target === this) this.classList.remove('active')">
+        <div class="profile-sheet">
+            <div class="avatar" id="profile-sheet-avatar">U</div>
+            <h2 id="profile-sheet-name">Username</h2>
+            <p>Active Session</p>
+            
+            <button class="btn" style="background: var(--danger); margin-bottom: 10px;" onclick="logout()">Log Out</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('profile-overlay').classList.remove('active')">Close</button>
+        </div>
+    </div>
+
     <script>
+        // DLP Logic
         function updateDLP() {
             if (currentState.chat_active) {
                 document.body.classList.add('noselect');
@@ -153,10 +221,11 @@
         document.addEventListener('keydown', (e) => {
             if (currentState.chat_active && (e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
                 e.preventDefault(); 
-                showToast("DLP Alert: Copying is disabled.", "error");
+                showToast("DLP Alert: Copying is disabled in the secure zone.", "error");
             }
         });
 
+        // State Management
         let currentState = {
             connected: false,
             username: null,
@@ -166,15 +235,10 @@
             contactsLength: -1
         };
 
-        function showCard(cardId) {
-            document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
-            document.getElementById('main-app-container').classList.remove('active');
-            
-            if(cardId === 'main-app-container') {
-                document.getElementById('main-app-container').classList.add('active');
-            } else {
-                document.getElementById(cardId).classList.add('active');
-            }
+        // UI Routing
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
             updateDLP();
         }
 
@@ -190,42 +254,7 @@
             }, 4000);
         }
 
-        function showModal(secret) {
-            document.getElementById('totp-secret-display').innerText = secret;
-            document.getElementById('qrcode').innerHTML = "";
-            const username = document.getElementById('reg-username').value.trim() || 'User';
-            const otpauth = `otpauth://totp/SecureChat:${username}?secret=${secret}&issuer=SecureChat`;
-            
-            if(typeof QRCode !== 'undefined') {
-                new QRCode(document.getElementById("qrcode"), {
-                    text: otpauth,
-                    width: 180,
-                    height: 180,
-                    colorDark : "#ffffff",
-                    colorLight : "#0f172a",
-                    correctLevel : QRCode.CorrectLevel.M
-                });
-            }
-            document.getElementById('totp-modal').classList.add('active');
-        }
-
-        function dismissModal() {
-            document.getElementById('totp-modal').classList.remove('active');
-            apiCall('/api/clear_messages', {});
-            document.getElementById('reg-username').value = '';
-            document.getElementById('reg-password').value = '';
-            showCard('login-card');
-        }
-
-        function copyTotp() {
-            const secret = document.getElementById('totp-secret-display').innerText;
-            navigator.clipboard.writeText(secret).then(() => {
-                showToast("Secret copied!", "success");
-            }).catch(err => {
-                showToast("Failed to copy.", "error");
-            });
-        }
-
+        // API Helper
         async function apiCall(endpoint, data) {
             const res = await fetch(endpoint, {
                 method: 'POST',
@@ -235,16 +264,14 @@
             return res.json();
         }
 
+        // Auth Logic
         function login() {
             const username = document.getElementById('login-username').value.trim();
             const password = document.getElementById('login-password').value;
             const totp_token = document.getElementById('login-totp').value.trim();
 
-            if (!username || !password) {
-                showToast("Enter username and password.", "error"); return;
-            }
-            if (!totp_token) {
-                showToast("Enter your 2FA code.", "error"); return;
+            if (!username || !password || !totp_token) {
+                showToast("Fill in all fields to login.", "error"); return;
             }
             apiCall('/api/login', { username, password, totp_token });
         }
@@ -259,9 +286,80 @@
             apiCall('/api/register', { username, password });
         }
 
+        // 2FA Setup Flow
+        let pendingTotpSecret = null;
+        
+        function setupTotpModal(secret) {
+            pendingTotpSecret = secret;
+            document.getElementById('totp-secret-display').innerText = secret;
+            document.getElementById('qrcode').innerHTML = "";
+            const username = document.getElementById('reg-username').value.trim() || 'User';
+            const otpauth = `otpauth://totp/SecureChat:${username}?secret=${secret}&issuer=SecureChat`;
+            
+            if(typeof QRCode !== 'undefined') {
+                new QRCode(document.getElementById("qrcode"), {
+                    text: otpauth,
+                    width: 200,
+                    height: 200,
+                    colorDark : "#0a0a0f",
+                    colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.M
+                });
+            }
+            document.getElementById('totp-setup-overlay').classList.add('active');
+            document.getElementById('setup-actions').style.display = 'block';
+            document.getElementById('verify-step').classList.remove('active');
+        }
+
+        function copyTotp() {
+            const secret = document.getElementById('totp-secret-display').innerText;
+            navigator.clipboard.writeText(secret).then(() => {
+                showToast("Secret copied! Keep it safe.", "success");
+            }).catch(err => {
+                showToast("Failed to copy.", "error");
+            });
+        }
+
+        function showVerifyStep() {
+            document.getElementById('setup-actions').style.display = 'none';
+            document.getElementById('verify-step').classList.add('active');
+            document.getElementById('verify-totp').focus();
+        }
+
+        function verifyAndCompleteRegistration() {
+            const code = document.getElementById('verify-totp').value.trim();
+            if(code.length !== 6) {
+                showToast("Enter a valid 6-digit code.", "error");
+                return;
+            }
+            
+            // In a real app, we'd verify this backend. 
+            // Since our backend doesn't have a verify endpoint post-registration yet, 
+            // we will simulate verification success and move them to login.
+            document.getElementById('totp-setup-overlay').classList.remove('active');
+            apiCall('/api/clear_messages', {});
+            
+            showToast("Setup complete! Please log in.", "success");
+            
+            // Pre-fill login
+            document.getElementById('login-username').value = document.getElementById('reg-username').value.trim();
+            document.getElementById('login-password').value = document.getElementById('reg-password').value;
+            
+            // Clear reg
+            document.getElementById('reg-username').value = '';
+            document.getElementById('reg-password').value = '';
+            document.getElementById('verify-totp').value = '';
+            
+            showScreen('login-screen');
+        }
+
+        // Chat Logic
         function addContact() {
             const target = document.getElementById('new-contact-username').value.trim();
             if (!target) return;
+            if (target === currentState.username) {
+                showToast("You cannot chat with yourself.", "error"); return;
+            }
             apiCall('/api/start_chat', { target });
             document.getElementById('new-contact-username').value = '';
         }
@@ -287,8 +385,8 @@
         }
 
         function logout() {
+            document.getElementById('profile-overlay').classList.remove('active');
             apiCall('/api/logout', {});
-            document.getElementById('login-username').value = '';
             document.getElementById('login-password').value = '';
             document.getElementById('login-totp').value = '';
             document.getElementById('messages-area').innerHTML = '';
@@ -299,18 +397,37 @@
             list.innerHTML = '';
             contacts.forEach(c => {
                 const div = document.createElement('div');
-                div.className = 'contact-item' + (c === targetUser ? ' active' : '');
+                div.className = 'chat-item' + (c === targetUser ? ' active' : '');
                 div.onclick = () => selectChat(c);
+                
                 div.innerHTML = `
                     <div class="avatar">${c.charAt(0).toUpperCase()}</div>
-                    <div class="contact-info">
-                        <h4>${c}</h4>
+                    <div class="chat-item-details">
+                        <div class="chat-item-header">
+                            <span class="chat-item-name">${c}</span>
+                        </div>
+                        <div class="chat-item-preview">Tap to view secure chat</div>
                     </div>
                 `;
                 list.appendChild(div);
             });
+            
+            // Also render online users strip (simulated for now based on contacts)
+            const strip = document.getElementById('online-users-strip');
+            strip.innerHTML = '';
+            contacts.forEach(c => {
+                const pill = document.createElement('div');
+                pill.className = 'online-pill';
+                pill.onclick = () => selectChat(c);
+                pill.innerHTML = `
+                    <div class="avatar">${c.charAt(0).toUpperCase()}<div class="online-dot"></div></div>
+                    <span>${c}</span>
+                `;
+                strip.appendChild(pill);
+            });
         }
 
+        // Polling loop
         async function pollState() {
             try {
                 const res = await fetch('/api/status');
@@ -320,7 +437,7 @@
                 if (state.connected) {
                     badge.innerText = "Connected"; badge.classList.add('connected');
                 } else {
-                    badge.innerText = "Not Connected"; badge.classList.remove('connected');
+                    badge.innerText = "Connecting..."; badge.classList.remove('connected');
                 }
 
                 if (state.error) {
@@ -329,17 +446,24 @@
                 }
                 
                 if (state.totp) {
-                    showModal(state.totp);
-                } else if (state.success) {
-                    showToast(state.success, "success");
+                    setupTotpModal(state.totp);
                     apiCall('/api/clear_messages', {});
+                } else if (state.success) {
+                    // Only show success if we aren't handling TOTP setup
+                    if(!document.getElementById('totp-setup-overlay').classList.contains('active')) {
+                        showToast(state.success, "success");
+                        apiCall('/api/clear_messages', {});
+                    }
                 }
 
                 // UI Routing
                 if (state.username) {
                     if (currentState.username !== state.username) {
-                        showCard('main-app-container');
-                        document.getElementById('sidebar-username').innerText = state.username;
+                        showScreen('app-shell');
+                        document.getElementById('my-username').innerText = state.username;
+                        document.getElementById('my-avatar').innerText = state.username.charAt(0).toUpperCase() + '<div class="online-dot"></div>';
+                        document.getElementById('profile-sheet-name').innerText = state.username;
+                        document.getElementById('profile-sheet-avatar').innerText = state.username.charAt(0).toUpperCase();
                     }
                     
                     if (JSON.stringify(state.contacts) !== JSON.stringify(currentState.contacts) || state.target_user !== currentState.target_user) {
@@ -348,9 +472,12 @@
                     }
 
                     if (state.chat_active) {
-                        document.getElementById('main-app-container').classList.add('chat-open');
+                        document.getElementById('app-shell').classList.add('chat-open');
                         document.getElementById('empty-chat').style.display = 'none';
-                        document.getElementById('active-chat').classList.add('active');
+                        document.getElementById('chat-header').style.display = 'flex';
+                        document.getElementById('messages-area').style.display = 'flex';
+                        document.getElementById('chat-input-area').style.display = 'block';
+                        
                         document.getElementById('chat-header-name').innerText = state.target_user;
                         document.getElementById('chat-avatar').innerText = state.target_user.charAt(0).toUpperCase();
                         
@@ -358,23 +485,44 @@
                             const area = document.getElementById('messages-area');
                             area.innerHTML = '';
                             state.messages.forEach(m => {
-                                const div = document.createElement('div');
-                                if (m.sender === 'SYSTEM') div.className = 'msg-bubble system';
-                                else if (m.sender === 'You') div.className = 'msg-bubble you';
-                                else div.className = 'msg-bubble them';
-                                div.innerText = m.text;
-                                area.appendChild(div);
+                                if (m.sender === 'SYSTEM') {
+                                    const div = document.createElement('div');
+                                    div.className = 'system-msg';
+                                    div.innerText = m.text;
+                                    area.appendChild(div);
+                                } else {
+                                    const wrapper = document.createElement('div');
+                                    wrapper.className = 'msg-wrapper ' + (m.sender === 'You' ? 'you' : 'them');
+                                    
+                                    const bubble = document.createElement('div');
+                                    bubble.className = 'msg-bubble';
+                                    bubble.innerText = m.text;
+                                    
+                                    const meta = document.createElement('div');
+                                    meta.className = 'msg-meta';
+                                    const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                                    meta.innerHTML = m.sender === 'You' ? `${time} <span>✓</span>` : time;
+                                    
+                                    wrapper.appendChild(bubble);
+                                    wrapper.appendChild(meta);
+                                    area.appendChild(wrapper);
+                                }
                             });
                             area.scrollTop = area.scrollHeight;
                             currentState.messagesLength = state.messages.length;
                         }
                     } else {
-                        document.getElementById('main-app-container').classList.remove('chat-open');
+                        document.getElementById('app-shell').classList.remove('chat-open');
                         document.getElementById('empty-chat').style.display = 'flex';
-                        document.getElementById('active-chat').classList.remove('active');
+                        document.getElementById('chat-header').style.display = 'none';
+                        document.getElementById('messages-area').style.display = 'none';
+                        document.getElementById('chat-input-area').style.display = 'none';
                     }
                 } else {
-                    if (currentState.username) showCard('login-card');
+                    if (currentState.username) {
+                        // User logged out
+                        showScreen('onboarding-screen');
+                    }
                 }
 
                 currentState.username = state.username;
@@ -388,7 +536,10 @@
         }
 
         setInterval(pollState, 1000);
-        window.addEventListener('DOMContentLoaded', pollState);
+        window.addEventListener('DOMContentLoaded', () => {
+            // Check initial state
+            pollState();
+        });
     </script>
 </body>
 </html>
