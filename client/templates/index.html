@@ -6,7 +6,7 @@
     <title>Secure Chat</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <script src="https://cdnjs.cloudflare.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body id="app-body">
 
@@ -46,7 +46,7 @@
         </div>
         <div class="form-group">
             <label for="login-totp">2FA Authenticator Token</label>
-            <input type="text" id="login-totp" placeholder="6-digit code from your app" autocomplete="off">
+            <input type="text" id="login-totp" placeholder="6-digit code" autocomplete="off">
         </div>
         
         <button class="btn" onclick="login()">Log In</button>
@@ -91,8 +91,8 @@
             
             <div style="padding: 15px; border-bottom: 1px solid var(--border);">
                 <div class="chat-input-group">
-                    <input type="text" id="new-contact-username" placeholder="Enter username...">
-                    <button class="btn" onclick="addContact()">Chat</button>
+                    <input type="text" id="new-contact-username" placeholder="Chat with...">
+                    <button class="btn" onclick="addContact()">Go</button>
                 </div>
             </div>
             
@@ -107,16 +107,19 @@
             <div class="empty-chat" id="empty-chat">
                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.5; margin-bottom: 20px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                 <h2>No Chat Selected</h2>
-                <p>Select a contact from the sidebar to start a secure session.</p>
+                <p>Select a contact to start messaging.</p>
             </div>
 
             <!-- Active Chat State -->
             <div class="active-chat" id="active-chat">
                 <div class="chat-header">
+                    <button class="back-btn" onclick="backToContacts()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    </button>
                     <div class="avatar" id="chat-avatar">U</div>
                     <div class="info">
                         <h3 id="chat-header-name">TargetUser</h3>
-                        <p>● End-to-End Encrypted Session</p>
+                        <p>● Secure Session</p>
                     </div>
                 </div>
                 
@@ -126,7 +129,7 @@
                 
                 <div class="chat-input-wrapper">
                     <div class="chat-input-group">
-                        <input type="text" id="msg-input" placeholder="Type a secure message..." onkeypress="handleEnter(event)">
+                        <input type="text" id="msg-input" placeholder="Secure message..." onkeypress="handleEnter(event)">
                         <button class="btn" onclick="sendMessage()">Send</button>
                     </div>
                 </div>
@@ -150,7 +153,7 @@
         document.addEventListener('keydown', (e) => {
             if (currentState.chat_active && (e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
                 e.preventDefault(); 
-                showToast("DLP Alert: Copying is disabled in this secure environment.", "error");
+                showToast("DLP Alert: Copying is disabled.", "error");
             }
         });
 
@@ -217,9 +220,9 @@
         function copyTotp() {
             const secret = document.getElementById('totp-secret-display').innerText;
             navigator.clipboard.writeText(secret).then(() => {
-                showToast("Secret copied to clipboard!", "success");
+                showToast("Secret copied!", "success");
             }).catch(err => {
-                showToast("Failed to copy. Please select and copy manually.", "error");
+                showToast("Failed to copy.", "error");
             });
         }
 
@@ -238,13 +241,10 @@
             const totp_token = document.getElementById('login-totp').value.trim();
 
             if (!username || !password) {
-                showToast("Please enter both username and password.", "error"); return;
+                showToast("Enter username and password.", "error"); return;
             }
             if (!totp_token) {
-                showToast("Please enter your 6-digit Authenticator code.", "error"); return;
-            }
-            if (totp_token.length > 6) {
-                showToast("Error: You pasted your Secret Key! Scan the QR Code or run 'python3 get_totp.py'.", "error"); return;
+                showToast("Enter your 2FA code.", "error"); return;
             }
             apiCall('/api/login', { username, password, totp_token });
         }
@@ -254,7 +254,7 @@
             const password = document.getElementById('reg-password').value;
 
             if (!username || !password) {
-                showToast("Please enter both a username and a password to register.", "error"); return;
+                showToast("Enter username and password.", "error"); return;
             }
             apiCall('/api/register', { username, password });
         }
@@ -268,6 +268,10 @@
 
         function selectChat(target) {
             apiCall('/api/start_chat', { target });
+        }
+
+        function backToContacts() {
+            apiCall('/api/deselect_chat', {});
         }
 
         function sendMessage() {
@@ -288,8 +292,6 @@
             document.getElementById('login-password').value = '';
             document.getElementById('login-totp').value = '';
             document.getElementById('messages-area').innerHTML = '';
-            document.getElementById('empty-chat').style.display = 'flex';
-            document.getElementById('active-chat').classList.remove('active');
         }
 
         function renderContacts(contacts, targetUser) {
@@ -309,14 +311,14 @@
             });
         }
 
-        setInterval(async () => {
+        async function pollState() {
             try {
                 const res = await fetch('/api/status');
                 const state = await res.json();
 
                 const badge = document.getElementById('status-badge');
                 if (state.connected) {
-                    badge.innerText = "Connected to Server"; badge.classList.add('connected');
+                    badge.innerText = "Connected"; badge.classList.add('connected');
                 } else {
                     badge.innerText = "Not Connected"; badge.classList.remove('connected');
                 }
@@ -340,14 +342,13 @@
                         document.getElementById('sidebar-username').innerText = state.username;
                     }
                     
-                    // Render Sidebar Contacts
                     if (JSON.stringify(state.contacts) !== JSON.stringify(currentState.contacts) || state.target_user !== currentState.target_user) {
                         renderContacts(state.contacts, state.target_user);
                         currentState.contacts = state.contacts;
                     }
 
-                    // Render Active Chat
                     if (state.chat_active) {
+                        document.getElementById('main-app-container').classList.add('chat-open');
                         document.getElementById('empty-chat').style.display = 'none';
                         document.getElementById('active-chat').classList.add('active');
                         document.getElementById('chat-header-name').innerText = state.target_user;
@@ -361,7 +362,6 @@
                                 if (m.sender === 'SYSTEM') div.className = 'msg-bubble system';
                                 else if (m.sender === 'You') div.className = 'msg-bubble you';
                                 else div.className = 'msg-bubble them';
-                                
                                 div.innerText = m.text;
                                 area.appendChild(div);
                             });
@@ -369,6 +369,7 @@
                             currentState.messagesLength = state.messages.length;
                         }
                     } else {
+                        document.getElementById('main-app-container').classList.remove('chat-open');
                         document.getElementById('empty-chat').style.display = 'flex';
                         document.getElementById('active-chat').classList.remove('active');
                     }
@@ -384,7 +385,10 @@
             } catch (e) {
                 console.error("Polling error", e);
             }
-        }, 1000);
+        }
+
+        setInterval(pollState, 1000);
+        window.addEventListener('DOMContentLoaded', pollState);
     </script>
 </body>
 </html>

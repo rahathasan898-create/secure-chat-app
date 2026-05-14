@@ -199,7 +199,14 @@ def logout():
     state['contacts'] = set()
     return jsonify({'status': 'ok'})
 
+@app.route('/api/deselect_chat', methods=['POST'])
+def deselect_chat():
+    state['target_user'] = None
+    state['chat_active'] = False
+    state['messages'] = []
+    return jsonify({'status': 'ok'})
+
 if __name__ == '__main__':
     # Auto-connect on startup
     threading.Thread(target=state['network'].connect, daemon=True).start()
-    app.run(port=5001, debug=False)
+    app.run(host='0.0.0.0', port=5001, debug=False)

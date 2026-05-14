@@ -470,3 +470,85 @@ input:focus {
     -ms-user-select: none;
     user-select: none;
 }
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    body {
+        align-items: flex-start;
+    }
+
+    #main-app-container {
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+        border: none;
+        max-width: none;
+    }
+
+    .sidebar {
+        width: 100%;
+        display: flex;
+    }
+
+    .chat-area {
+        width: 100%;
+        display: none; /* Hide chat area by default on mobile */
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        z-index: 10;
+        background: var(--bg-dark);
+    }
+
+    /* Show chat area when active-chat is active on mobile */
+    #main-app-container.chat-open .chat-area {
+        display: flex;
+    }
+
+    #main-app-container.chat-open .sidebar {
+        display: none;
+    }
+
+    .empty-chat {
+        display: none !important;
+    }
+
+    .msg-bubble {
+        max-width: 85%;
+    }
+
+    .modal-content {
+        width: 95%;
+        padding: 24px 16px;
+    }
+
+    #qrcode img {
+        max-width: 150px !important;
+        height: auto !important;
+    }
+
+    .sidebar-header {
+        padding: 15px;
+    }
+
+    .contact-item {
+        padding: 12px 15px;
+    }
+}
+
+.back-btn {
+    display: none;
+    background: transparent;
+    border: none;
+    color: var(--text-light);
+    cursor: pointer;
+    padding: 5px;
+    margin-right: 10px;
+}
+
+@media (max-width: 768px) {
+    .back-btn {
+        display: block;
+    }
+}
