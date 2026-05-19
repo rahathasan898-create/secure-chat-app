@@ -65,7 +65,10 @@ class SecureChatApp:
 
     def handle_server_message(self, response):
         action = response.get('action')
-        
+
+        if action == 'SERVER_READY':
+            return
+
         if action == 'RECEIVE_MSG':
             sender = response['from']
             encrypted_content_b64 = response['encrypted_content']

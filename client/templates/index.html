@@ -3,102 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    {% if csrf_token %}
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    {% endif %}
     <title>SecureChat</title>
+    <script>
+        (function () {
+            var k = 'securechat-theme';
+            var t = localStorage.getItem(k);
+            document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+        })();
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=16">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body id="app-body">
 
-    <div id="status-badge" class="status-badge">Connecting...</div>
-    <div id="toast-container"></div>
+    <div class="phone-shell" id="phone-shell">
+    <button type="button" class="icon-btn icon-btn-theme theme-fab" id="btn-theme-quick" aria-label="Toggle light or dark mode" title="Light / dark mode" onclick="toggleTheme()">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+    </button>
+    <div id="toast-container" class="toast-container"></div>
 
-    <!-- Screen 1: Onboarding Splash -->
-    <div class="screen active" id="onboarding-screen">
-        <div class="shield-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-            </svg>
-        </div>
-        <h1>SecureChat</h1>
-        <p>End-to-End Encrypted Messaging.<br>No one reads your messages. Not even us.</p>
-        
-        <div class="action-buttons">
-            <button class="btn" onclick="showScreen('register-screen')">Get Started</button>
-            <button class="btn btn-secondary" onclick="showScreen('login-screen')">Sign In</button>
-        </div>
-    </div>
-
-    <!-- Screen 2a: Registration -->
+    <!-- Sign up -->
     <div class="screen" id="register-screen">
         <div class="auth-container">
-            <div class="auth-header">
-                <h2>Create Account</h2>
-                <p>Step 1 of 2: Set up your credentials</p>
+            <div class="auth-brand">
+                <div class="shield-icon shield-icon-sm">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    </svg>
+                </div>
+                <h1 class="auth-brand-title">SecureChat</h1>
+                <p class="auth-brand-tagline">Create your encrypted account</p>
             </div>
-            
+            <div class="auth-header">
+                <h2>Sign up</h2>
+                <p>Step 1 of 2 — choose a username and password</p>
+                <p class="field-hint">Missed the QR code? Use the same username and password again to continue setup.</p>
+            </div>
             <div class="form-group">
                 <label for="reg-username">Username</label>
-                <input type="text" id="reg-username" placeholder="Choose a unique username" autocomplete="off">
+                <input type="text" id="reg-username" placeholder="Choose a unique username" autocomplete="username">
             </div>
             <div class="form-group">
                 <label for="reg-password">Password</label>
-                <input type="password" id="reg-password" placeholder="Create a strong password">
+                <input type="password" id="reg-password" placeholder="Create a strong password" autocomplete="new-password">
             </div>
-            
-            <button class="btn" onclick="register()">Next Step →</button>
-            
-            <div style="text-align: center; margin-top: 20px;">
-                <button class="btn-text" onclick="showScreen('login-screen')">Already have an account? Sign In</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Screen 2b: 2FA Setup Overlay -->
-    <div class="overlay" id="totp-setup-overlay">
-        <div class="auth-container" style="max-height: 90vh; overflow-y: auto;">
-            <div class="auth-header">
-                <h2>Protect Your Account</h2>
-                <p>Step 2 of 2: Setup Authenticator</p>
-            </div>
-            
-            <div style="text-align: center;">
-                <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 15px;">
-                    Scan this QR code with Google Authenticator or Authy.
-                </p>
-                
-                <div class="qr-container" id="qrcode"></div>
-                
-                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 10px;">Or enter manually:</p>
-                <div class="totp-box" id="totp-secret-display">XXXXXX</div>
-                <button class="btn btn-secondary" style="padding: 8px 16px; font-size: 0.85rem; margin: 0 auto 20px auto; width: auto;" onclick="copyTotp()">Copy Code</button>
-                
-                <div id="setup-actions">
-                    <button class="btn" onclick="showVerifyStep()">I've Scanned It</button>
-                </div>
-                
-                <div class="verify-step" id="verify-step">
-                    <label for="verify-totp">Verify setup by entering the 6-digit code:</label>
-                    <div style="display: flex; gap: 10px; margin-top: 10px;">
-                        <input type="text" id="verify-totp" placeholder="000000" maxlength="6" style="text-align: center; letter-spacing: 5px; font-size: 1.2rem;">
-                    </div>
-                    <button class="btn" style="margin-top: 15px; background: var(--success);" onclick="verifyAndCompleteRegistration()">Complete Setup</button>
-                </div>
+            <button type="button" class="btn" id="btn-register" onclick="register()">Continue →</button>
+            <div class="auth-footer">
+                <span class="auth-footer-text">Already have an account?</span>
+                <button type="button" class="btn-text auth-link" onclick="goToLogin()">Sign in</button>
             </div>
         </div>
     </div>
 
-    <!-- Screen 3: Login -->
-    <div class="screen" id="login-screen">
+    <!-- Sign in (default) -->
+    <div class="screen active" id="login-screen">
         <div class="auth-container">
+            <div class="auth-brand">
+                <div class="shield-icon shield-icon-sm">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    </svg>
+                </div>
+                <h1 class="auth-brand-title">SecureChat</h1>
+                <p class="auth-brand-tagline">End-to-end encrypted messaging</p>
+            </div>
             <div class="auth-header">
-                <h2>Welcome Back</h2>
-                <p>Sign in to your secure session</p>
+                <h2>Sign in</h2>
+                <p>Welcome back — enter your credentials</p>
             </div>
             
             <div class="form-group">
                 <label for="login-username">Username</label>
-                <input type="text" id="login-username" placeholder="Enter your username" autocomplete="off">
+                <input type="text" id="login-username" placeholder="Enter your username" autocomplete="username">
             </div>
             <div class="form-group">
                 <label for="login-password">Password</label>
@@ -106,52 +87,69 @@
             </div>
             <div class="form-group">
                 <label for="login-totp">Authenticator Code</label>
-                <input type="text" id="login-totp" placeholder="6-digit code" autocomplete="off" maxlength="6" style="letter-spacing: 2px;">
+                <input type="text" id="login-totp" placeholder="6-digit code from your authenticator" autocomplete="off" maxlength="6" inputmode="numeric" style="letter-spacing: 2px;">
+                <p class="field-hint" id="login-totp-hint">Use the 6-digit code from Google Authenticator or Authy.</p>
             </div>
             
-            <button class="btn" onclick="login()">Log In</button>
-            
-            <div style="text-align: center; margin-top: 20px;">
-                <button class="btn-text" onclick="showScreen('register-screen')">Need an account? Get Started</button>
+            <button type="button" class="btn" id="btn-login" onclick="login()">Sign in</button>
+            <div class="auth-footer">
+                <span class="auth-footer-text">Don&apos;t have an account?</span>
+                <button type="button" class="btn-text auth-link" onclick="goToSignUp()">Sign up</button>
             </div>
         </div>
     </div>
 
     <!-- Screen 4: Main App Shell -->
     <div class="screen" id="app-shell">
-        <!-- Sidebar -->
+        <!-- Sidebar: unified Chats -->
         <div class="sidebar">
-            <div class="sidebar-header">
-                <div class="user-profile-mini">
-                    <div class="avatar" id="my-avatar">U<div class="online-dot"></div></div>
-                    <div>
-                        <div style="font-weight: 600; font-size: 1rem;" id="my-username">User</div>
-                        <div style="font-size: 0.75rem; color: var(--text-secondary);">Online</div>
+            <div class="chats-header">
+                <div id="status-badge" class="status-badge status-badge-inline" role="status" aria-live="polite">Connecting…</div>
+                <div class="chats-header-top">
+                    <div class="user-profile-mini">
+                        <div class="avatar" id="my-avatar">U<div class="online-dot"></div></div>
+                        <div>
+                            <div class="chats-title">Chats</div>
+                            <div class="chats-subtitle" id="my-display-label">User</div>
+                            <div class="chats-login-hint" id="my-username-hint">@user</div>
+                        </div>
+                    </div>
+                    <div class="chats-header-actions">
+                        <button type="button" class="icon-btn icon-btn-accent" aria-label="Create group" onclick="openCreateGroupSheet()" title="New group">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                        </button>
+                        <button type="button" class="icon-btn icon-btn-theme" id="btn-theme-header" aria-label="Toggle light or dark mode" onclick="toggleTheme()" title="Light / dark mode">
+                            <svg class="icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                            <svg class="icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                        </button>
+                        <button type="button" class="icon-btn" id="btn-admin-panel" aria-label="Administration" onclick="openAdminPanel()" title="Administration" style="display: none;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2zm10-10V7a4 4 0 0 0-8 0v4h8z"></path></svg>
+                        </button>
+                        <button type="button" class="icon-btn" aria-label="Open profile" onclick="openProfileSheet()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                        </button>
                     </div>
                 </div>
-                <button class="icon-btn" onclick="document.getElementById('profile-overlay').classList.add('active')">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-                </button>
-            </div>
-            
-            <!-- Online Users Strip -->
-            <div class="online-users-container">
-                <div class="online-users-title">Online Now (Simulated)</div>
-                <div class="online-strip" id="online-users-strip">
-                    <!-- Dynamic online users will go here -->
+                <div class="search-bar search-bar-compact">
+                    <div class="search-input-wrapper">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <input type="search" id="chat-search" placeholder="Search chats or usernames…" autocomplete="off" oninput="onChatSearchInput()">
+                    </div>
+                </div>
+                <div class="filter-chips" role="tablist" aria-label="Filter conversations">
+                    <button type="button" class="filter-chip active" data-filter="all" onclick="setChatFilter('all')">All</button>
+                    <button type="button" class="filter-chip" data-filter="groups" onclick="setChatFilter('groups')">Groups</button>
+                    <button type="button" class="filter-chip" data-filter="direct" onclick="setChatFilter('direct')">Direct</button>
                 </div>
             </div>
 
-            <!-- Search / Add Contact -->
-            <div class="search-bar">
-                <div class="search-input-wrapper">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                    <input type="text" id="new-contact-username" placeholder="Start new chat with username..." onkeypress="if(event.key === 'Enter') addContact()">
-                </div>
-            </div>
-            
-            <div class="chat-list" id="contact-list">
-                <!-- Chats rendered here -->
+            <div class="chat-list conversation-list" id="conversation-list" aria-label="Conversations"></div>
+
+            <div class="new-chat-bar">
+                <input type="text" id="new-contact-username" placeholder="Message someone new (username)…" autocomplete="off" onkeypress="if(event.key === 'Enter') addContact()">
+                <button type="button" class="new-chat-send" aria-label="Start chat" onclick="addContact()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </button>
             </div>
         </div>
 
@@ -164,27 +162,32 @@
             </div>
 
             <div class="chat-header" id="chat-header" style="display: none;">
-                <button class="back-btn" onclick="backToContacts()">
+                <button type="button" class="back-btn" aria-label="Back to conversations" onclick="backToContacts()">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                 </button>
                 <div class="avatar" id="chat-avatar" style="width: 44px; height: 44px;">U</div>
                 <div class="chat-header-info">
                     <h3 id="chat-header-name">TargetUser</h3>
-                    <div class="secure-badge">
+                    <div class="secure-badge" id="chat-header-sub">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                        End-to-End Encrypted
+                        <span id="chat-header-sub-text">End-to-End Encrypted</span>
                     </div>
                 </div>
+                <button type="button" class="icon-btn chat-info-btn" id="chat-info-btn" aria-label="Chat details" onclick="openChatInfo()" title="Details" style="display: none;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+                </button>
             </div>
             
-            <div class="messages" id="messages-area" style="display: none;">
-                <!-- Messages go here -->
-            </div>
+            <div class="messages" id="messages-area" style="display: none;" aria-live="polite" aria-relevant="additions" aria-label="Conversation messages"></div>
             
             <div class="chat-input-area" id="chat-input-area" style="display: none;">
+                <div id="security-hints" class="security-hints" aria-live="polite"></div>
+                <div class="composer-toolbar">
+                    <button type="button" class="btn-text btn-compact" onclick="scanOutboundSecurity()">Check message (on-device)</button>
+                </div>
                 <div class="chat-input-wrapper">
-                    <input type="text" id="msg-input" placeholder="Type a secure message..." onkeypress="handleEnter(event)">
-                    <button class="send-btn" onclick="sendMessage()">
+                    <textarea id="msg-input" class="msg-textarea" rows="1" placeholder="Type a secure message…" maxlength="8000" aria-label="Message text"></textarea>
+                    <button type="button" class="send-btn" id="btn-send" aria-label="Send message" onclick="sendMessage()">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                     </button>
                 </div>
@@ -192,19 +195,234 @@
         </div>
     </div>
 
-    <!-- Profile Bottom Sheet / Modal -->
-    <div class="overlay" id="profile-overlay" onclick="if(event.target === this) this.classList.remove('active')">
-        <div class="profile-sheet">
-            <div class="avatar" id="profile-sheet-avatar">U</div>
-            <h2 id="profile-sheet-name">Username</h2>
-            <p>Active Session</p>
-            
-            <button class="btn" style="background: var(--danger); margin-bottom: 10px;" onclick="logout()">Log Out</button>
-            <button class="btn btn-secondary" onclick="document.getElementById('profile-overlay').classList.remove('active')">Close</button>
+    <!-- Profile -->
+    <div class="overlay sheet-overlay" id="profile-overlay" role="dialog" aria-modal="true" aria-labelledby="profile-sheet-title" onclick="if(event.target === this) closeProfileSheet()">
+        <div class="sheet-panel profile-sheet scroll-sheet" onclick="event.stopPropagation()">
+            <div class="sheet-header">
+                <h2 id="profile-sheet-title">Your profile</h2>
+                <button type="button" class="icon-btn sheet-close" aria-label="Close" onclick="closeProfileSheet()">&times;</button>
+            </div>
+            <div class="profile-hero">
+                <div class="avatar profile-avatar-lg" id="profile-sheet-avatar">U</div>
+                <p class="profile-login-id" id="profile-login-id">@username</p>
+            </div>
+            <section class="settings-block">
+                <label for="profile-display-name">Display name</label>
+                <p class="field-hint">Shown in the app. Your login username does not change.</p>
+                <input type="text" id="profile-display-name" maxlength="80" placeholder="Your name" autocomplete="name">
+                <button type="button" class="btn" id="btn-save-display-name" onclick="saveDisplayName()">Save display name</button>
+            </section>
+            <section class="settings-block">
+                <div class="theme-setting-row">
+                    <div>
+                        <div class="theme-setting-label">Appearance</div>
+                        <div class="theme-setting-hint">Dark or light interface</div>
+                    </div>
+                    <div class="theme-segmented" role="group" aria-label="Theme">
+                        <button type="button" class="theme-segment-btn" data-theme="dark" onclick="setTheme('dark')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                            Dark
+                        </button>
+                        <button type="button" class="theme-segment-btn" data-theme="light" onclick="setTheme('light')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line></svg>
+                            Light
+                        </button>
+                    </div>
+                </div>
+            </section>
+            <section class="settings-block settings-block-muted">
+                <p id="profile-role-line" class="profile-meta">Role: —</p>
+            </section>
+            <section class="settings-block settings-actions">
+                <button type="button" class="btn btn-secondary" onclick="rotateSessionKeys()">Rotate keys (current chat)</button>
+                <button type="button" class="btn btn-danger" onclick="logout()">Log out</button>
+            </section>
         </div>
     </div>
 
+    <div class="overlay sheet-overlay" id="dm-info-overlay" role="dialog" aria-modal="true" onclick="if(event.target === this) closeDmInfo()">
+        <div class="sheet-panel scroll-sheet" onclick="event.stopPropagation()">
+            <div class="sheet-header">
+                <h2>Contact</h2>
+                <button type="button" class="icon-btn sheet-close" aria-label="Close" onclick="closeDmInfo()">&times;</button>
+            </div>
+            <div class="profile-hero">
+                <div class="avatar profile-avatar-lg" id="dm-info-avatar">U</div>
+                <h3 id="dm-info-name">User</h3>
+                <p class="profile-meta" id="dm-info-status">—</p>
+            </div>
+            <p class="field-hint sheet-pad">Direct messages use per-chat encryption keys.</p>
+        </div>
+    </div>
+
+    <div class="overlay sheet-overlay" id="group-settings-overlay" role="dialog" aria-modal="true" onclick="if(event.target === this) closeGroupSettings()">
+        <div class="sheet-panel scroll-sheet group-settings-sheet" onclick="event.stopPropagation()">
+            <div class="sheet-header">
+                <h2>Group info</h2>
+                <button type="button" class="icon-btn sheet-close" aria-label="Close" onclick="closeGroupSettings()">&times;</button>
+            </div>
+            <section class="settings-block">
+                <label for="gs-name">Group name</label>
+                <input type="text" id="gs-name" maxlength="120" autocomplete="off" disabled>
+                <p class="field-hint" id="gs-rename-hint">Only the creator can rename this group.</p>
+                <button type="button" class="btn" id="btn-gs-save-name" onclick="saveGroupName()" style="display: none;">Save group name</button>
+            </section>
+            <section class="settings-block">
+                <label>Members</label>
+                <ul class="member-list" id="gs-members-list"></ul>
+            </section>
+            <section class="settings-block settings-actions">
+                <button type="button" class="btn btn-secondary" id="btn-leave-group" onclick="leaveCurrentGroup()">Leave group</button>
+                <button type="button" class="btn btn-danger" id="btn-delete-group" onclick="deleteCurrentGroup()" style="display: none;">Delete group for everyone</button>
+            </section>
+        </div>
+    </div>
+
+
+    <div class="overlay sheet-overlay" id="admin-overlay" role="dialog" aria-modal="true" onclick="if(event.target === this) closeAdminPanel()">
+        <div class="sheet-panel scroll-sheet admin-sheet" onclick="event.stopPropagation()">
+            <div class="sheet-header">
+                <h2 id="admin-panel-title">Administration</h2>
+                <button type="button" class="icon-btn sheet-close" aria-label="Close" onclick="closeAdminPanel()">&times;</button>
+            </div>
+            <p class="field-hint" id="admin-panel-hint">Manage users and roles. Master admin can assign moderator or user roles.</p>
+            <div class="admin-toolbar">
+                <button type="button" class="btn btn-secondary btn-compact-admin" onclick="refreshAdminUsers()">Refresh</button>
+            </div>
+            <div class="admin-table-wrap">
+                <table class="admin-table" id="admin-users-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th id="admin-actions-col">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-users-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="overlay sheet-overlay" id="create-group-overlay" role="dialog" aria-modal="true" aria-labelledby="create-group-title" onclick="if(event.target === this) closeCreateGroupSheet()">
+        <div class="sheet-panel create-group-sheet">
+            <div class="sheet-header">
+                <h2 id="create-group-title">New group</h2>
+                <button type="button" class="icon-btn sheet-close" aria-label="Close" onclick="closeCreateGroupSheet()">&times;</button>
+            </div>
+            <p class="sheet-sub">Pick members from contacts and who is online. You are added automatically.</p>
+            <div class="form-group">
+                <label for="cg-name">Group name</label>
+                <input type="text" id="cg-name" placeholder="e.g. Project team" maxlength="120" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="cg-member-search">Add members</label>
+                <input type="search" id="cg-member-search" placeholder="Search people…" autocomplete="off" oninput="renderGroupMemberPicker()">
+            </div>
+            <div class="selected-members-wrap" id="cg-selected-wrap" hidden>
+                <div class="selected-members-label">Selected</div>
+                <div class="selected-chips" id="cg-selected-chips"></div>
+            </div>
+            <div class="member-picker" id="cg-member-picker"></div>
+            <button type="button" class="btn" id="btn-create-group" onclick="submitCreateGroup()">Create group</button>
+        </div>
+    </div>
+
+    <!-- 2FA setup (sign up step 2) -->
+    <div class="overlay" id="totp-setup-overlay" role="dialog" aria-modal="true" aria-labelledby="totp-setup-title">
+        <div class="auth-container profile-sheet" style="max-height: 90vh; overflow-y: auto;">
+            <div class="auth-header">
+                <h2 id="totp-setup-title">Protect your account</h2>
+                <p>Step 2 of 2 — set up your authenticator app</p>
+            </div>
+            <div style="text-align: center;">
+                <p class="field-hint" style="margin-bottom: 15px;">
+                    Scan this QR code with Google Authenticator or Authy.
+                </p>
+                <div class="qr-container" id="qrcode"></div>
+                <p class="field-hint" style="margin-bottom: 10px;">Or enter manually:</p>
+                <div class="totp-box" id="totp-secret-display">XXXXXX</div>
+                <button type="button" class="btn btn-secondary btn-compact" onclick="copyTotp()">Copy secret</button>
+                <div id="setup-actions" style="margin-top: 16px;">
+                    <button type="button" class="btn" onclick="showVerifyStep()">I&apos;ve scanned it</button>
+                </div>
+                <div class="verify-step" id="verify-step">
+                    <label for="verify-totp">Enter the 6-digit code to verify:</label>
+                    <input type="text" id="verify-totp" placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code" style="text-align: center; letter-spacing: 5px; font-size: 1.2rem; margin-top: 10px;">
+                    <button type="button" class="btn" id="btn-verify-totp" style="margin-top: 15px;" onclick="verifyAndCompleteRegistration()">Complete setup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    </div><!-- /.phone-shell -->
+
     <script>
+        const THEME_STORAGE_KEY = 'securechat-theme';
+
+        function getTheme() {
+            const t = document.documentElement.getAttribute('data-theme');
+            return t === 'light' ? 'light' : 'dark';
+        }
+
+        function setTheme(theme) {
+            const next = theme === 'light' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            try {
+                localStorage.setItem(THEME_STORAGE_KEY, next);
+            } catch (e) { /* private browsing */ }
+            updateThemeUI();
+        }
+
+        function toggleTheme() {
+            setTheme(getTheme() === 'dark' ? 'light' : 'dark');
+        }
+
+        function updateThemeUI() {
+            const theme = getTheme();
+            document.querySelectorAll('.theme-segment-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.theme === theme);
+            });
+            const fab = document.getElementById('btn-theme-quick');
+            const appActive = document.getElementById('app-shell')?.classList.contains('active');
+            if (fab) fab.style.display = appActive ? 'none' : 'flex';
+        }
+
+        function initTheme() {
+            updateThemeUI();
+        }
+
+        function escapeHtml(s) {
+            const d = document.createElement('div');
+            d.textContent = s == null ? '' : String(s);
+            return d.innerHTML;
+        }
+
+        function formatMsgTime(ts) {
+            if (!ts) {
+                return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+            const d = new Date(ts);
+            if (isNaN(d.getTime())) {
+                return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function setBusy(el, busy) {
+            if (!el) return;
+            el.disabled = busy;
+            el.classList.toggle('btn-loading', busy);
+        }
+
+        function autosizeMsgInput() {
+            const el = document.getElementById('msg-input');
+            if (!el) return;
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+        }
+
         // DLP Logic
         function updateDLP() {
             if (currentState.chat_active) {
@@ -217,34 +435,450 @@
         document.addEventListener('contextmenu', event => {
             if (currentState.chat_active) event.preventDefault();
         });
-        
+
         document.addEventListener('keydown', (e) => {
             if (currentState.chat_active && (e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
-                e.preventDefault(); 
+                e.preventDefault();
                 showToast("DLP Alert: Copying is disabled in the secure zone.", "error");
             }
         });
 
-        // State Management
         let currentState = {
             connected: false,
+            reconnecting: false,
             username: null,
             target_user: null,
+            target_group_id: null,
+            chat_mode: 'dm',
             chat_active: false,
             messagesLength: 0,
-            contactsLength: -1,
             all_users: [],
-            online_users: []
+            online_users: [],
+            last_preview: {},
+            unread: {},
+            contacts: [],
+            user_role: null,
+            groupsSnapshot: '',
+            groups: [],
+            display_name: null,
+            permissions: null,
+            admin_users: [],
+            chatFilter: 'all',
+            chatSearchQuery: ''
         };
 
-        // UI Routing
+        const groupMemberSelection = new Set();
+
+        function setChatFilter(filter) {
+            currentState.chatFilter = filter;
+            document.querySelectorAll('.filter-chip').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.filter === filter);
+            });
+            renderConversationListFromState();
+        }
+
+        function onChatSearchInput() {
+            const el = document.getElementById('chat-search');
+            currentState.chatSearchQuery = (el && el.value || '').trim().toLowerCase();
+            renderConversationListFromState();
+        }
+
+        function openCreateGroupSheet() {
+            groupMemberSelection.clear();
+            const nameEl = document.getElementById('cg-name');
+            const searchEl = document.getElementById('cg-member-search');
+            if (nameEl) nameEl.value = '';
+            if (searchEl) searchEl.value = '';
+            renderGroupMemberPicker();
+            document.getElementById('create-group-overlay').classList.add('active');
+        }
+
+        function closeCreateGroupSheet() {
+            document.getElementById('create-group-overlay').classList.remove('active');
+        }
+
+        function updateUserLabels(state) {
+            const uname = state.username || '';
+            const dname = state.display_name || uname;
+            const initial = (dname || 'U').charAt(0).toUpperCase();
+            const label = document.getElementById('my-display-label');
+            const hint = document.getElementById('my-username-hint');
+            if (label) label.textContent = dname;
+            if (hint) hint.textContent = uname ? '@' + uname : '';
+            const av = document.getElementById('my-avatar');
+            if (av) av.innerHTML = initial + '<div class="online-dot"></div>';
+            const pav = document.getElementById('profile-sheet-avatar');
+            if (pav) pav.textContent = initial;
+            const plogin = document.getElementById('profile-login-id');
+            if (plogin) plogin.textContent = uname ? '@' + uname : '';
+            const pdisp = document.getElementById('profile-display-name');
+            if (pdisp && document.activeElement !== pdisp) pdisp.value = dname;
+        }
+
+        function openProfileSheet() {
+            document.getElementById('profile-overlay').classList.add('active');
+        }
+
+        function closeProfileSheet() {
+            document.getElementById('profile-overlay').classList.remove('active');
+        }
+
+        function applyPermissionsUI() {
+            const perms = currentState.permissions || {};
+            const btn = document.getElementById('btn-admin-panel');
+            if (btn) {
+                btn.style.display = (perms.can_admin || perms.can_moderate) ? 'flex' : 'none';
+            }
+            const roleLine = document.getElementById('profile-role-line');
+            if (roleLine && currentState.user_role) {
+                const label = currentState.user_role === 'master_admin' ? 'Master Admin'
+                    : currentState.user_role === 'moderator' ? 'Moderator' : 'User';
+                roleLine.textContent = 'Role: ' + label;
+            }
+        }
+
+        function openAdminPanel() {
+            const perms = currentState.permissions || {};
+            if (!perms.can_admin && !perms.can_moderate) {
+                showToast('Admin access required', 'error');
+                return;
+            }
+            document.getElementById('admin-panel-title').textContent =
+                perms.can_admin ? 'Master administration' : 'Moderation';
+            document.getElementById('admin-panel-hint').textContent = perms.can_admin
+                ? 'Assign roles (user / moderator), delete accounts, and view online status. The master admin account cannot be removed.'
+                : 'View all users. You can delete any message in chats you open (moderation).';
+            document.getElementById('admin-overlay').classList.add('active');
+            refreshAdminUsers();
+        }
+
+        function closeAdminPanel() {
+            document.getElementById('admin-overlay').classList.remove('active');
+        }
+
+        async function refreshAdminUsers() {
+            await apiCall('/api/admin/list_users', {});
+            setTimeout(renderAdminUsersTable, 400);
+        }
+
+        function renderAdminUsersTable() {
+            const tbody = document.getElementById('admin-users-tbody');
+            if (!tbody) return;
+            const perms = currentState.permissions || {};
+            const canAdmin = !!perms.can_admin;
+            const me = currentState.username;
+            const users = currentState.admin_users || [];
+            tbody.innerHTML = '';
+            if (!users.length) {
+                tbody.innerHTML = '<tr><td colspan="4" class="admin-empty">No users loaded. Tap Refresh.</td></tr>';
+                return;
+            }
+            users.forEach(u => {
+                const tr = document.createElement('tr');
+                const isMaster = u.role === 'master_admin';
+                const isSelf = u.username === me;
+                let status = u.online ? 'Online' : 'Offline';
+                if (!u.has_public_key) status += ' · no key';
+                let actionsHtml = '—';
+                if (canAdmin && !isMaster) {
+                    const sel = document.createElement('select');
+                    sel.className = 'admin-role-select';
+                    ['user', 'moderator'].forEach(r => {
+                        const opt = document.createElement('option');
+                        opt.value = r;
+                        opt.textContent = r;
+                        if (u.role === r) opt.selected = true;
+                        sel.appendChild(opt);
+                    });
+                    sel.disabled = isSelf;
+                    sel.onchange = () => adminSetRole(u.username, sel.value);
+                    const delBtn = document.createElement('button');
+                    delBtn.type = 'button';
+                    delBtn.className = 'btn-text admin-del-btn';
+                    delBtn.textContent = 'Delete';
+                    delBtn.disabled = isSelf;
+                    delBtn.onclick = () => adminDeleteUser(u.username);
+                    const act = document.createElement('div');
+                    act.className = 'admin-actions-cell';
+                    act.appendChild(sel);
+                    act.appendChild(delBtn);
+                    actionsHtml = act.outerHTML;
+                } else if (canAdmin && isMaster) {
+                    actionsHtml = '<span class="field-hint">Protected</span>';
+                }
+                const roleLabel = u.role === 'master_admin' ? 'Master admin'
+                    : u.role === 'moderator' ? 'Moderator' : 'User';
+                tr.innerHTML = `
+                    <td><strong>${escapeHtml(u.display_name || u.username)}</strong><br><span class="admin-user-sub">@${escapeHtml(u.username)}</span></td>
+                    <td>${escapeHtml(roleLabel)}</td>
+                    <td>${escapeHtml(status)}</td>
+                    <td></td>
+                `;
+                const actCell = tr.cells[3];
+                if (canAdmin && !isMaster) {
+                    actCell.innerHTML = '';
+                    const sel = document.createElement('select');
+                    sel.className = 'admin-role-select';
+                    ['user', 'moderator'].forEach(r => {
+                        const opt = document.createElement('option');
+                        opt.value = r;
+                        opt.textContent = r;
+                        if (u.role === r) opt.selected = true;
+                        sel.appendChild(opt);
+                    });
+                    sel.disabled = isSelf;
+                    sel.onchange = () => adminSetRole(u.username, sel.value);
+                    const delBtn = document.createElement('button');
+                    delBtn.type = 'button';
+                    delBtn.className = 'btn-text admin-del-btn';
+                    delBtn.textContent = 'Delete';
+                    delBtn.disabled = isSelf;
+                    delBtn.onclick = () => adminDeleteUser(u.username);
+                    const act = document.createElement('div');
+                    act.className = 'admin-actions-cell';
+                    act.appendChild(sel);
+                    act.appendChild(delBtn);
+                    actCell.appendChild(act);
+                } else if (canAdmin && isMaster) {
+                    actCell.innerHTML = '<span class="field-hint">Protected</span>';
+                } else {
+                    actCell.textContent = '—';
+                }
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function adminSetRole(username, role) {
+            const res = await apiCall('/api/admin/set_role', { username, role });
+            if (res.error) showToast(res.error, 'error');
+            else showToast('Updating role…', 'success');
+            setTimeout(refreshAdminUsers, 600);
+        }
+
+        async function adminDeleteUser(username) {
+            if (!confirm('Delete user "' + username + '"? This cannot be undone.')) return;
+            const res = await apiCall('/api/admin/delete_user', { username });
+            if (res.error) showToast(res.error, 'error');
+            else showToast('Deleting user…', 'success');
+            setTimeout(refreshAdminUsers, 600);
+        }
+
+        async function saveDisplayName() {
+            const name = document.getElementById('profile-display-name').value.trim();
+            if (!name) {
+                showToast('Enter a display name', 'error');
+                return;
+            }
+            const btn = document.getElementById('btn-save-display-name');
+            setBusy(btn, true);
+            const res = await apiCall('/api/update_display_name', { display_name: name });
+            setBusy(btn, false);
+            if (res.error) showToast(res.error, 'error');
+            else showToast('Saving…', 'success');
+        }
+
+        function getActiveGroupMeta() {
+            const gid = currentState.target_group_id;
+            if (gid == null) return null;
+            return (currentState.groups || []).find(g => g.group_id === gid) || null;
+        }
+
+        function openChatInfo() {
+            if (currentState.chat_mode === 'group') {
+                openGroupSettings();
+                return;
+            }
+            const peer = currentState.target_user;
+            if (!peer) return;
+            document.getElementById('dm-info-name').textContent = peer;
+            document.getElementById('dm-info-avatar').textContent = peer.charAt(0).toUpperCase();
+            const online = (currentState.online_users || []).includes(peer);
+            document.getElementById('dm-info-status').textContent = online ? 'Online now' : 'Offline';
+            document.getElementById('dm-info-overlay').classList.add('active');
+        }
+
+        function closeDmInfo() {
+            document.getElementById('dm-info-overlay').classList.remove('active');
+        }
+
+        function openGroupSettings() {
+            const g = getActiveGroupMeta();
+            if (!g) return;
+            const me = currentState.username;
+            const isCreator = g.created_by_username && g.created_by_username === me;
+            const nameInput = document.getElementById('gs-name');
+            const saveBtn = document.getElementById('btn-gs-save-name');
+            const hint = document.getElementById('gs-rename-hint');
+            const delBtn = document.getElementById('btn-delete-group');
+            nameInput.value = g.name || 'Group';
+            nameInput.disabled = !isCreator;
+            saveBtn.style.display = isCreator ? 'block' : 'none';
+            hint.textContent = isCreator
+                ? 'You created this group — you can rename or delete it.'
+                : 'Only the group creator can rename the group.';
+            delBtn.style.display = isCreator ? 'block' : 'none';
+            const ul = document.getElementById('gs-members-list');
+            ul.innerHTML = '';
+            (g.members || []).forEach(m => {
+                const li = document.createElement('li');
+                li.textContent = m + (m === me ? ' (you)' : '');
+                ul.appendChild(li);
+            });
+            document.getElementById('group-settings-overlay').classList.add('active');
+        }
+
+        function closeGroupSettings() {
+            document.getElementById('group-settings-overlay').classList.remove('active');
+        }
+
+        async function saveGroupName() {
+            const g = getActiveGroupMeta();
+            if (!g) return;
+            const name = document.getElementById('gs-name').value.trim();
+            if (!name) {
+                showToast('Enter a group name', 'error');
+                return;
+            }
+            const btn = document.getElementById('btn-gs-save-name');
+            setBusy(btn, true);
+            const res = await apiCall('/api/rename_group', { group_id: g.group_id, name });
+            setBusy(btn, false);
+            if (res.error) showToast(res.error, 'error');
+            else showToast('Saving…', 'success');
+        }
+
+        async function leaveCurrentGroup() {
+            const g = getActiveGroupMeta();
+            if (!g) return;
+            if (!confirm('Leave this group? You will need to be re-added to see messages again.')) return;
+            closeGroupSettings();
+            backToContacts();
+            const res = await apiCall('/api/leave_group', { group_id: g.group_id });
+            if (res.error) showToast(res.error, 'error');
+            else showToast('Leaving group…', 'success');
+        }
+
+        async function deleteCurrentGroup() {
+            const g = getActiveGroupMeta();
+            if (!g) return;
+            if (!confirm('Delete this group for everyone? All messages will be removed.')) return;
+            closeGroupSettings();
+            backToContacts();
+            const res = await apiCall('/api/delete_group', { group_id: g.group_id });
+            if (res.error) showToast(res.error, 'error');
+            else showToast('Deleting group…', 'success');
+        }
+
+        function toggleGroupMember(username) {
+            if (!username || username === currentState.username) return;
+            if (groupMemberSelection.has(username)) {
+                groupMemberSelection.delete(username);
+            } else {
+                groupMemberSelection.add(username);
+            }
+            renderGroupMemberPicker();
+        }
+
+        function renderSelectedMemberChips() {
+            const wrap = document.getElementById('cg-selected-wrap');
+            const chips = document.getElementById('cg-selected-chips');
+            if (!wrap || !chips) return;
+            const list = [...groupMemberSelection];
+            wrap.hidden = list.length === 0;
+            chips.innerHTML = '';
+            list.forEach(u => {
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.className = 'member-chip selected';
+                chip.textContent = u + ' ×';
+                chip.onclick = () => toggleGroupMember(u);
+                chips.appendChild(chip);
+            });
+        }
+
+        function renderGroupMemberPicker() {
+            const root = document.getElementById('cg-member-picker');
+            if (!root) return;
+            const q = (document.getElementById('cg-member-search').value || '').trim().toLowerCase();
+            const me = currentState.username;
+            const all = (currentState.all_users || []).filter(u => u !== me);
+            const online = new Set(currentState.online_users || []);
+            const match = u => !q || u.toLowerCase().includes(q);
+
+            const onlineList = all.filter(u => online.has(u) && match(u));
+            const otherList = all.filter(u => !online.has(u) && match(u));
+
+            root.innerHTML = '';
+            renderSelectedMemberChips();
+
+            function addSection(title, users) {
+                if (!users.length) return;
+                const h = document.createElement('div');
+                h.className = 'picker-section-title';
+                h.textContent = title;
+                root.appendChild(h);
+                users.forEach(u => {
+                    const row = document.createElement('button');
+                    row.type = 'button';
+                    row.className = 'picker-row' + (groupMemberSelection.has(u) ? ' picked' : '');
+                    const initial = escapeHtml(u.charAt(0).toUpperCase());
+                    const onlineDot = online.has(u) ? '<div class="online-dot"></div>' : '';
+                    row.innerHTML = `
+                        <div class="avatar picker-avatar">${initial}${onlineDot}</div>
+                        <span class="picker-name">${escapeHtml(u)}</span>
+                        <span class="picker-check" aria-hidden="true">${groupMemberSelection.has(u) ? '✓' : ''}</span>
+                    `;
+                    row.onclick = () => toggleGroupMember(u);
+                    root.appendChild(row);
+                });
+            }
+
+            addSection('Online now', onlineList);
+            addSection('All contacts', otherList);
+            if (!onlineList.length && !otherList.length) {
+                root.innerHTML = '<p class="picker-empty">No users match. Register friends first or clear search.</p>';
+            }
+        }
+
+        function getCsrfToken() {
+            const m = document.querySelector('meta[name="csrf-token"]');
+            return (m && m.content) || window.__csrfToken || '';
+        }
+
         function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(screenId).classList.add('active');
             updateDLP();
+            updateThemeUI();
         }
 
-        function showToast(message, type="success") {
+        function goToLogin() {
+            showScreen('login-screen');
+            const userEl = document.getElementById('login-username');
+            const passEl = document.getElementById('login-password');
+            if (userEl && userEl.value.trim()) {
+                passEl?.focus();
+            } else {
+                userEl?.focus();
+            }
+        }
+
+        function goToSignUp(prefillUsername) {
+            const fromLogin = (prefillUsername || document.getElementById('login-username')?.value || '').trim();
+            const fromPass = document.getElementById('login-password')?.value || '';
+            if (fromLogin) {
+                document.getElementById('reg-username').value = fromLogin;
+            }
+            document.getElementById('reg-password').value = fromPass;
+            showScreen('register-screen');
+            if (fromLogin) {
+                document.getElementById('reg-password').focus();
+            } else {
+                document.getElementById('reg-username').focus();
+            }
+        }
+
+        function showToast(message, type = "success") {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
@@ -256,111 +890,189 @@
             }, 4000);
         }
 
-        // API Helper
         async function apiCall(endpoint, data) {
             const res = await fetch(endpoint, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': getCsrfToken()
+                },
+                body: JSON.stringify(data || {}),
+                credentials: 'same-origin'
             });
-            return res.json();
+            let body = {};
+            try {
+                body = await res.json();
+            } catch (e) {
+                body = { error: 'Invalid server response' };
+            }
+            if (res.status === 403 && !body.error) {
+                body.error = 'Session expired — refresh the page and try again.';
+            }
+            return body;
         }
 
-        // Auth Logic
-        function login() {
+        async function login() {
             const username = document.getElementById('login-username').value.trim();
             const password = document.getElementById('login-password').value;
             const totp_token = document.getElementById('login-totp').value.trim();
-
-            if (!username || !password || !totp_token) {
-                showToast("Fill in all fields to login.", "error"); return;
-            }
-            apiCall('/api/login', { username, password, totp_token });
-        }
-
-        function register() {
-            const username = document.getElementById('reg-username').value.trim();
-            const password = document.getElementById('reg-password').value;
+            const btn = document.getElementById('btn-login');
 
             if (!username || !password) {
-                showToast("Enter username and password.", "error"); return;
+                showToast("Enter username and password.", "error");
+                return;
             }
-            apiCall('/api/register', { username, password });
+            if (!totp_token) {
+                showToast("Enter the 6-digit code from your authenticator app.", "error");
+                document.getElementById('login-totp').focus();
+                return;
+            }
+            setBusy(btn, true);
+            try {
+                const res = await apiCall('/api/login', { username, password, totp_token });
+                if (res.error) {
+                    showToast(res.error, 'error');
+                } else {
+                    showToast('Signing in…', 'success');
+                }
+            } catch (e) {
+                showToast('Could not reach server. Is web_app.py running?', 'error');
+            } finally {
+                setBusy(btn, false);
+            }
         }
 
-        // 2FA Setup Flow
-        let pendingTotpSecret = null;
-        
-        function setupTotpModal(secret) {
-            pendingTotpSecret = secret;
-            document.getElementById('totp-secret-display').innerText = secret;
-            document.getElementById('qrcode').innerHTML = "";
-            const username = document.getElementById('reg-username').value.trim() || 'User';
-            const otpauth = `otpauth://totp/SecureChat:${username}?secret=${secret}&issuer=SecureChat`;
-            
-            if(typeof QRCode !== 'undefined') {
-                new QRCode(document.getElementById("qrcode"), {
-                    text: otpauth,
-                    width: 200,
-                    height: 200,
-                    colorDark : "#0a0a0f",
-                    colorLight : "#ffffff",
-                    correctLevel : QRCode.CorrectLevel.M
-                });
+        async function register() {
+            const username = document.getElementById('reg-username').value.trim();
+            const password = document.getElementById('reg-password').value;
+            const btn = document.getElementById('btn-register');
+
+            if (!username || !password) {
+                showToast("Enter username and password.", "error");
+                return;
             }
-            document.getElementById('totp-setup-overlay').classList.add('active');
-            document.getElementById('setup-actions').style.display = 'block';
-            document.getElementById('verify-step').classList.remove('active');
+            setBusy(btn, true);
+            try {
+                const res = await apiCall('/api/register', { username, password });
+                if (res.error) {
+                    showToast(res.error, 'error');
+                } else {
+                    showToast('Setting up your account… watch for the QR code.', 'success');
+                }
+            } catch (e) {
+                showToast('Could not reach server. Is web_app.py running?', 'error');
+            } finally {
+                setBusy(btn, false);
+            }
+        }
+
+        let pendingTotpSecret = null;
+        let totpSetupSecret = null;
+        let totpVerifyMode = false;
+
+        function setupTotpModal(secret) {
+            const overlay = document.getElementById('totp-setup-overlay');
+            const secretEl = document.getElementById('totp-secret-display');
+            const qrEl = document.getElementById('qrcode');
+            const setupActions = document.getElementById('setup-actions');
+            const verifyStep = document.getElementById('verify-step');
+            if (!overlay || !secretEl || !qrEl || !setupActions || !verifyStep) {
+                showToast('Setup UI missing — refresh the page.', 'error');
+                return;
+            }
+            const sameSecret = totpSetupSecret === secret;
+            if (sameSecret && overlay.classList.contains('active')) {
+                return;
+            }
+            pendingTotpSecret = secret;
+            totpSetupSecret = secret;
+            secretEl.innerText = secret;
+
+            if (!sameSecret) {
+                qrEl.innerHTML = '';
+                const username = document.getElementById('reg-username').value.trim() || 'User';
+                const otpauth = `otpauth://totp/SecureChat:${username}?secret=${secret}&issuer=SecureChat`;
+                if (typeof QRCode !== 'undefined') {
+                    new QRCode(qrEl, {
+                        text: otpauth,
+                        width: 200,
+                        height: 200,
+                        colorDark: '#0a0a0f',
+                        colorLight: '#ffffff',
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+                }
+            }
+
+            overlay.classList.add('active');
+            if (totpVerifyMode) {
+                setupActions.style.display = 'none';
+                verifyStep.classList.add('active');
+            } else {
+                setupActions.style.display = 'block';
+                verifyStep.classList.remove('active');
+            }
+        }
+
+        function resetTotpSetupState() {
+            totpSetupSecret = null;
+            totpVerifyMode = false;
+            pendingTotpSecret = null;
         }
 
         function copyTotp() {
             const secret = document.getElementById('totp-secret-display').innerText;
             navigator.clipboard.writeText(secret).then(() => {
                 showToast("Secret copied! Keep it safe.", "success");
-            }).catch(err => {
+            }).catch(() => {
                 showToast("Failed to copy.", "error");
             });
         }
 
         function showVerifyStep() {
+            totpVerifyMode = true;
             document.getElementById('setup-actions').style.display = 'none';
             document.getElementById('verify-step').classList.add('active');
-            document.getElementById('verify-totp').focus();
+            const input = document.getElementById('verify-totp');
+            if (input) {
+                input.value = '';
+                setTimeout(() => input.focus(), 50);
+            }
         }
 
-        function verifyAndCompleteRegistration() {
+        async function verifyAndCompleteRegistration() {
             const code = document.getElementById('verify-totp').value.trim();
-            if(code.length !== 6) {
+            if (code.length !== 6) {
                 showToast("Enter a valid 6-digit code.", "error");
                 return;
             }
-            
-            // In a real app, we'd verify this backend. 
-            // Since our backend doesn't have a verify endpoint post-registration yet, 
-            // we will simulate verification success and move them to login.
-            document.getElementById('totp-setup-overlay').classList.remove('active');
-            apiCall('/api/clear_messages', {});
-            
-            showToast("Setup complete! Please log in.", "success");
-            
-            // Pre-fill login
-            document.getElementById('login-username').value = document.getElementById('reg-username').value.trim();
-            document.getElementById('login-password').value = document.getElementById('reg-password').value;
-            
-            // Clear reg
-            document.getElementById('reg-username').value = '';
-            document.getElementById('reg-password').value = '';
-            document.getElementById('verify-totp').value = '';
-            
-            showScreen('login-screen');
+            const username = document.getElementById('reg-username').value.trim();
+            if (!username) {
+                showToast("Username missing.", "error");
+                return;
+            }
+            const btn = document.getElementById('btn-verify-totp');
+            setBusy(btn, true);
+            try {
+                const res = await apiCall('/api/verify_registration_totp', { username, totp_token: code });
+                if (res.error) {
+                    showToast(res.error, 'error');
+                    return;
+                }
+                showToast('Verifying code…', 'success');
+            } catch (e) {
+                showToast('Could not reach server.', 'error');
+            } finally {
+                setBusy(btn, false);
+            }
         }
 
-        // Chat Logic
         function addContact() {
             const target = document.getElementById('new-contact-username').value.trim();
             if (!target) return;
             if (target === currentState.username) {
-                showToast("You cannot chat with yourself.", "error"); return;
+                showToast("You cannot chat with yourself.", "error");
+                return;
             }
             apiCall('/api/start_chat', { target });
             document.getElementById('new-contact-username').value = '';
@@ -370,127 +1082,342 @@
             apiCall('/api/start_chat', { target });
         }
 
+        function selectGroup(groupId) {
+            apiCall('/api/open_group', { group_id: groupId });
+        }
+
+        async function submitCreateGroup() {
+            const name = document.getElementById('cg-name').value.trim() || 'Group';
+            const members = [...groupMemberSelection];
+            const btn = document.getElementById('btn-create-group');
+            setBusy(btn, true);
+            const res = await apiCall('/api/create_group', { name, members });
+            setBusy(btn, false);
+            if (res.error) {
+                showToast(res.error, 'error');
+                return;
+            }
+            closeCreateGroupSheet();
+            groupMemberSelection.clear();
+            showToast('Creating group…', 'success');
+        }
+
         function backToContacts() {
             apiCall('/api/deselect_chat', {});
         }
 
-        function sendMessage() {
+        async function sendMessage() {
             const msgInput = document.getElementById('msg-input');
             const msg = msgInput.value.trim();
             if (!msg) return;
-            apiCall('/api/send_message', { message: msg });
+            const btn = document.getElementById('btn-send');
+            setBusy(btn, true);
+            const res = await apiCall('/api/send_message', { message: msg });
+            setBusy(btn, false);
+            if (res.error) {
+                showToast(res.error, "error");
+                return;
+            }
             msgInput.value = '';
+            document.getElementById('security-hints').innerHTML = '';
+            autosizeMsgInput();
         }
 
-        function handleEnter(e) {
-            if (e.key === 'Enter') sendMessage();
+        async function rotateSessionKeys() {
+            closeProfileSheet();
+            const res = await apiCall('/api/rotate_session_keys', {});
+            if (res.error) showToast(res.error, "error");
+            else showToast("Re-establishing secure session…", "success");
+        }
+
+        async function deleteServerMessage(messageId, groupId) {
+            if (groupId != null && groupId !== '') {
+                if (!confirm('Delete this message from the server for everyone in the group?')) return;
+                const res = await apiCall('/api/delete_message', { message_id: messageId, group_id: groupId });
+                if (res.error) showToast(res.error, "error");
+                return;
+            }
+            const peer = currentState.target_user;
+            if (!peer || messageId == null) return;
+            if (!confirm('Delete this message from the server? It disappears for both participants.')) return;
+            const res = await apiCall('/api/delete_message', { message_id: messageId, peer });
+            if (res.error) showToast(res.error, "error");
+        }
+
+        function scanOutboundSecurity() {
+            const text = (document.getElementById('msg-input').value || '').trim();
+            const hints = document.getElementById('security-hints');
+            if (!text) {
+                hints.innerHTML = '';
+                return;
+            }
+            const issues = [];
+            if (/\b(password|passwd|pwd)\s*[:=]/i.test(text)) {
+                issues.push('Avoid sending password-like strings over chat.');
+            }
+            if (/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/.test(text)) {
+                issues.push('This may resemble a payment card number — do not share secrets.');
+            }
+            if (text.length > 2000) {
+                issues.push('Very long message — consider splitting for readability.');
+            }
+            if (/https?:\/\//i.test(text)) {
+                issues.push('Contains a URL — only send links you trust.');
+            }
+            hints.innerHTML = issues.length
+                ? issues.map(escapeHtml).join('<br>')
+                : '<span class="hint-ok">No obvious issues detected (on-device heuristic only).</span>';
+        }
+
+        function handleComposerKeydown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
         }
 
         function logout() {
-            document.getElementById('profile-overlay').classList.remove('active');
+            closeProfileSheet();
             apiCall('/api/logout', {});
             document.getElementById('login-password').value = '';
             document.getElementById('login-totp').value = '';
             document.getElementById('messages-area').innerHTML = '';
         }
 
-        function renderContacts(allUsers, onlineUsers, contacts, targetUser) {
-            const list = document.getElementById('contact-list');
+        function renderConversationListFromState() {
+            let groups = currentState.groups;
+            if (!groups || !groups.length) {
+                try {
+                    groups = currentState.groupsSnapshot ? JSON.parse(currentState.groupsSnapshot) : [];
+                } catch (_) {
+                    groups = [];
+                }
+            }
+            renderConversationList(
+                groups || [],
+                currentState.all_users || [],
+                currentState.online_users || [],
+                currentState.target_user,
+                currentState.target_group_id,
+                currentState.chat_mode,
+                currentState.last_preview || {},
+                currentState.unread || {},
+                currentState.username,
+                currentState.chatFilter || 'all',
+                currentState.chatSearchQuery || ''
+            );
+        }
+
+        function renderConversationList(groups, allUsers, onlineUsers, targetUser, targetGroupId, chatMode, lastPreview, unread, myUsername, filter, searchQ) {
+            const list = document.getElementById('conversation-list');
+            if (!list) return;
             list.innerHTML = '';
-            
-            // We show all registered users, prioritizing those we've contacted or are online
-            allUsers.forEach(c => {
-                if (c === currentState.username) return; // Don't show self in list
-                
-                const isOnline = onlineUsers.includes(c);
-                const hasContacted = contacts.includes(c);
-                
+            const q = (searchQ || '').toLowerCase();
+            const onlineSet = new Set(onlineUsers || []);
+            const items = [];
+
+            (groups || []).forEach(g => {
+                if (filter === 'direct') return;
+                const name = g.name || 'Group';
+                if (q && !name.toLowerCase().includes(q)) return;
+                items.push({
+                    kind: 'group',
+                    id: g.group_id,
+                    name,
+                    preview: g.preview || 'Group chat',
+                    unread: g.unread || 0,
+                    active: chatMode === 'group' && g.group_id === targetGroupId
+                });
+            });
+
+            (allUsers || []).forEach(c => {
+                if (myUsername && c === myUsername) return;
+                if (filter === 'groups') return;
+                if (q && !c.toLowerCase().includes(q)) return;
+                const isOnline = onlineSet.has(c);
+                items.push({
+                    kind: 'direct',
+                    id: c,
+                    name: c,
+                    preview: (lastPreview && lastPreview[c]) || (isOnline ? 'Online now' : 'Tap to chat'),
+                    unread: (unread && unread[c]) || 0,
+                    active: chatMode !== 'group' && c === targetUser,
+                    isOnline
+                });
+            });
+
+            if (!items.length) {
+                list.innerHTML = '<p class="conversation-empty">No chats yet. Message someone below or tap + to create a group.</p>';
+                return;
+            }
+
+            let lastSection = null;
+            items.forEach(item => {
+                if (filter === 'all' && !q) {
+                    const sec = item.kind === 'group' ? 'Groups' : 'Direct';
+                    if (sec !== lastSection) {
+                        lastSection = sec;
+                        const h = document.createElement('div');
+                        h.className = 'conv-section-label';
+                        h.textContent = sec;
+                        list.appendChild(h);
+                    }
+                }
+
                 const div = document.createElement('div');
-                div.className = 'chat-item' + (c === targetUser ? ' active' : '');
-                div.onclick = () => selectChat(c);
-                
+                const isGroup = item.kind === 'group';
+                div.className = 'chat-item' + (isGroup ? ' group-item' : '') + (item.active ? ' active' : '');
+                div.onclick = () => isGroup ? selectGroup(item.id) : selectChat(item.id);
+
+                const n = item.unread > 0 ? `<span class="unread-badge" aria-label="Unread messages">${item.unread}</span>` : '';
+                let avatarHtml;
+                if (isGroup) {
+                    avatarHtml = `<div class="avatar group-avatar" aria-hidden="true">${escapeHtml((item.name.charAt(0) || 'G').toUpperCase())}</div>`;
+                } else {
+                    avatarHtml = `<div class="avatar">${escapeHtml(item.name.charAt(0).toUpperCase())}${item.isOnline ? '<div class="online-dot"></div>' : ''}</div>`;
+                }
+
                 div.innerHTML = `
-                    <div class="avatar">
-                        ${c.charAt(0).toUpperCase()}
-                        ${isOnline ? '<div class="online-dot"></div>' : ''}
-                    </div>
+                    ${avatarHtml}
                     <div class="chat-item-details">
                         <div class="chat-item-header">
-                            <span class="chat-item-name">${c}</span>
+                            <span class="chat-item-name">${escapeHtml(item.name)}</span>
+                            ${n}
                         </div>
-                        <div class="chat-item-preview">${isOnline ? 'Online now' : 'Offline'}</div>
+                        <div class="chat-item-preview">${escapeHtml(item.preview)}</div>
                     </div>
                 `;
                 list.appendChild(div);
             });
-            
-            // Render actual online users strip
-            const strip = document.getElementById('online-users-strip');
-            strip.innerHTML = '';
-            
-            let onlineCount = 0;
-            onlineUsers.forEach(c => {
-                if (c === currentState.username) return; // Don't show self
-                onlineCount++;
-                const pill = document.createElement('div');
-                pill.className = 'online-pill';
-                pill.onclick = () => selectChat(c);
-                pill.innerHTML = `
-                    <div class="avatar">${c.charAt(0).toUpperCase()}<div class="online-dot"></div></div>
-                    <span>${c}</span>
-                `;
-                strip.appendChild(pill);
-            });
-            
-            document.querySelector('.online-users-title').innerText = `Online Now (${onlineCount})`;
         }
 
-        // Polling loop
         async function pollState() {
             try {
                 const res = await fetch('/api/status');
                 const state = await res.json();
 
+                if (state.csrf_token) {
+                    window.__csrfToken = state.csrf_token;
+                    const cm = document.querySelector('meta[name="csrf-token"]');
+                    if (cm) cm.setAttribute('content', state.csrf_token);
+                }
+                if (state.target_user !== currentState.target_user ||
+                    state.target_group_id !== currentState.target_group_id ||
+                    state.chat_mode !== currentState.chat_mode) {
+                    const sh = document.getElementById('security-hints');
+                    if (sh) sh.innerHTML = '';
+                }
+
                 const badge = document.getElementById('status-badge');
-                if (state.connected) {
-                    badge.innerText = "Connected"; badge.classList.add('connected');
+                const errHint = state.last_network_error ? String(state.last_network_error).slice(0, 48) : '';
+                if (state.reconnecting) {
+                    badge.innerText = errHint ? `Reconnecting… (${errHint})` : 'Reconnecting…';
+                    badge.title = state.last_network_error || '';
+                    badge.classList.remove('connected');
+                    badge.classList.add('reconnecting');
+                } else if (state.connected) {
+                    badge.innerText = "Connected";
+                    badge.title = 'SecureChat TCP session active';
+                    badge.classList.add('connected');
+                    badge.classList.remove('reconnecting');
                 } else {
-                    badge.innerText = "Connecting..."; badge.classList.remove('connected');
+                    let off = errHint ? `Offline — ${errHint}` : 'Offline';
+                    const tp = state.tcp_port != null ? state.tcp_port : 12345;
+                    if (state.tcp_loopback_open === false) {
+                        off = `Offline — nothing on 127.0.0.1:${tp} (run server.py first)`;
+                        badge.title = (state.last_network_error || '') +
+                            '\nIn a separate terminal: cd server && python3 server.py';
+                    } else if (state.tcp_loopback_open === true) {
+                        off = errHint ? `Offline — ${errHint}` : `Offline — port ${tp} open; reconnecting…`;
+                        badge.title = state.last_network_error || 'TCP port accepts connections but this session is not linked — try refresh.';
+                    }
+                    badge.innerText = off;
+                    if (state.tcp_loopback_open == null) {
+                        badge.title = state.last_network_error || '';
+                    }
+                    badge.classList.remove('connected');
+                    badge.classList.remove('reconnecting');
+                }
+
+                if (state.registration_verify === 'success') {
+                    document.getElementById('totp-setup-overlay').classList.remove('active');
+                    resetTotpSetupState();
+                    showToast("Setup complete! Please log in.", "success");
+                    document.getElementById('login-username').value = document.getElementById('reg-username').value.trim();
+                    document.getElementById('login-password').value = document.getElementById('reg-password').value;
+                    document.getElementById('reg-username').value = '';
+                    document.getElementById('reg-password').value = '';
+                    document.getElementById('verify-totp').value = '';
+                    showScreen('login-screen');
+                    await apiCall('/api/clear_messages', {});
+                } else if (state.registration_verify === 'error') {
+                    showToast("Invalid authenticator code. Try again.", "error");
+                    totpVerifyMode = true;
+                    document.getElementById('setup-actions').style.display = 'none';
+                    document.getElementById('verify-step').classList.add('active');
+                    document.getElementById('verify-totp')?.focus();
+                    await apiCall('/api/clear_messages', { keep_totp: true });
                 }
 
                 if (state.error) {
                     showToast(state.error, "error");
                     apiCall('/api/clear_messages', {});
                 }
-                
+
                 if (state.totp) {
+                    const isNewTotp = state.totp !== totpSetupSecret;
                     setupTotpModal(state.totp);
+                    if (isNewTotp && !totpVerifyMode) {
+                        showToast("Scan the QR code, then verify with your 6-digit code.", "success");
+                    }
                     apiCall('/api/clear_messages', {});
                 } else if (state.success) {
-                    // Only show success if we aren't handling TOTP setup
-                    if(!document.getElementById('totp-setup-overlay').classList.contains('active')) {
+                    const totpOverlay = document.getElementById('totp-setup-overlay');
+                    const totpActive = totpOverlay && totpOverlay.classList.contains('active');
+                    if (!totpActive) {
                         showToast(state.success, "success");
                         apiCall('/api/clear_messages', {});
                     }
                 }
 
-                // UI Routing
                 if (state.username) {
                     if (currentState.username !== state.username) {
                         showScreen('app-shell');
-                        document.getElementById('my-username').innerText = state.username;
-                        document.getElementById('my-avatar').innerHTML = state.username.charAt(0).toUpperCase() + '<div class="online-dot"></div>';
-                        document.getElementById('profile-sheet-name').innerText = state.username;
-                        document.getElementById('profile-sheet-avatar').innerText = state.username.charAt(0).toUpperCase();
                     }
-                    
-                    if (JSON.stringify(state.all_users) !== JSON.stringify(currentState.all_users) || 
-                        JSON.stringify(state.online_users) !== JSON.stringify(currentState.online_users) || 
-                        state.target_user !== currentState.target_user) {
-                        renderContacts(state.all_users || [], state.online_users || [], state.contacts || [], state.target_user);
-                        currentState.all_users = state.all_users;
-                        currentState.online_users = state.online_users;
+                    if (currentState.username !== state.username ||
+                        currentState.display_name !== (state.display_name || state.username)) {
+                        updateUserLabels(state);
                     }
+                    const contacts = state.contacts || [];
+                    const lastPreview = state.last_preview || {};
+                    const unread = state.unread || {};
+                    const groupsSnap = JSON.stringify(state.groups || []);
+                    if (state.username !== currentState.username ||
+                        JSON.stringify(state.all_users || []) !== JSON.stringify(currentState.all_users || []) ||
+                        JSON.stringify(state.online_users || []) !== JSON.stringify(currentState.online_users || []) ||
+                        JSON.stringify(lastPreview) !== JSON.stringify(currentState.last_preview || {}) ||
+                        JSON.stringify(unread) !== JSON.stringify(currentState.unread || {}) ||
+                        JSON.stringify(contacts) !== JSON.stringify(currentState.contacts || []) ||
+                        state.target_user !== currentState.target_user ||
+                        groupsSnap !== currentState.groupsSnapshot ||
+                        state.target_group_id !== currentState.target_group_id ||
+                        state.chat_mode !== currentState.chat_mode ||
+                        (state.display_name || state.username) !== currentState.display_name) {
+                        renderConversationList(state.groups || [], state.all_users || [], state.online_users || [], state.target_user, state.target_group_id, state.chat_mode, lastPreview, unread, state.username, currentState.chatFilter || 'all', currentState.chatSearchQuery || '');
+                        currentState.all_users = state.all_users || [];
+                        currentState.online_users = state.online_users || [];
+                        currentState.last_preview = lastPreview;
+                        currentState.unread = unread;
+                        currentState.contacts = contacts;
+                        currentState.groupsSnapshot = groupsSnap;
+                        currentState.groups = state.groups || [];
+                        if (document.getElementById('create-group-overlay').classList.contains('active')) {
+                            renderGroupMemberPicker();
+                        }
+                    }
+
+                    const infoBtn = document.getElementById('chat-info-btn');
+                    if (infoBtn) infoBtn.style.display = state.chat_active ? 'flex' : 'none';
 
                     if (state.chat_active) {
                         document.getElementById('app-shell').classList.add('chat-open');
@@ -498,14 +1425,37 @@
                         document.getElementById('chat-header').style.display = 'flex';
                         document.getElementById('messages-area').style.display = 'flex';
                         document.getElementById('chat-input-area').style.display = 'block';
-                        
-                        document.getElementById('chat-header-name').innerText = state.target_user;
-                        document.getElementById('chat-avatar').innerText = state.target_user.charAt(0).toUpperCase();
-                        
-                        if (state.messages.length > currentState.messagesLength || state.target_user !== currentState.target_user) {
+
+                        let title = state.target_user || '';
+                        let subText = 'End-to-End Encrypted';
+                        let av = (title || 'U').charAt(0).toUpperCase();
+                        if (state.chat_mode === 'group' && state.target_group_id != null) {
+                            const g = (state.groups || []).find(x => x.group_id === state.target_group_id);
+                            const nm = g ? g.name : `Group #${state.target_group_id}`;
+                            const mc = g && g.members ? g.members.length : 0;
+                            title = nm;
+                            subText = mc + (mc === 1 ? ' member' : ' members');
+                            av = (nm.charAt(0) || 'G').toUpperCase();
+                        } else if (state.target_user) {
+                            const online = (state.online_users || []).includes(state.target_user);
+                            subText = online ? 'Online · Encrypted' : 'Offline · Encrypted';
+                        }
+                        document.getElementById('chat-header-name').innerText = title;
+                        document.getElementById('chat-avatar').innerText = av;
+                        const subEl = document.getElementById('chat-header-sub-text');
+                        if (subEl) subEl.textContent = subText;
+
+                        const gidForDel = state.chat_mode === 'group' ? state.target_group_id : null;
+                        const reRenderMsgs =
+                            state.messages.length !== currentState.messagesLength ||
+                            state.target_user !== currentState.target_user ||
+                            state.target_group_id !== currentState.target_group_id ||
+                            state.chat_mode !== currentState.chat_mode;
+
+                        if (reRenderMsgs) {
                             const area = document.getElementById('messages-area');
                             area.innerHTML = '';
-                            state.messages.forEach(m => {
+                            (state.messages || []).forEach(m => {
                                 if (m.sender === 'SYSTEM') {
                                     const div = document.createElement('div');
                                     div.className = 'system-msg';
@@ -514,16 +1464,31 @@
                                 } else {
                                     const wrapper = document.createElement('div');
                                     wrapper.className = 'msg-wrapper ' + (m.sender === 'You' ? 'you' : 'them');
-                                    
+
                                     const bubble = document.createElement('div');
                                     bubble.className = 'msg-bubble';
                                     bubble.innerText = m.text;
-                                    
+
                                     const meta = document.createElement('div');
                                     meta.className = 'msg-meta';
-                                    const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                                    meta.innerHTML = m.sender === 'You' ? `${time} <span>✓</span>` : time;
-                                    
+                                    const timeSpan = document.createElement('span');
+                                    timeSpan.textContent = formatMsgTime(m.ts) + (m.sender === 'You' ? ' \u2713' : '');
+                                    meta.appendChild(timeSpan);
+                                    if (m.server_id != null) {
+                                        const del = document.createElement('button');
+                                        del.type = 'button';
+                                        del.className = 'msg-del';
+                                        del.setAttribute('aria-label', 'Delete message from server');
+                                        del.textContent = 'Delete';
+                                        const mid = m.server_id;
+                                        del.onclick = function(ev) {
+                                            ev.preventDefault();
+                                            ev.stopPropagation();
+                                            deleteServerMessage(mid, gidForDel);
+                                        };
+                                        meta.appendChild(del);
+                                    }
+
                                     wrapper.appendChild(bubble);
                                     wrapper.appendChild(meta);
                                     area.appendChild(wrapper);
@@ -541,14 +1506,25 @@
                     }
                 } else {
                     if (currentState.username) {
-                        // User logged out
-                        showScreen('onboarding-screen');
+                        showScreen('login-screen');
                     }
                 }
 
                 currentState.username = state.username;
+                currentState.display_name = state.display_name || state.username;
+                currentState.user_role = state.user_role;
+                currentState.permissions = state.permissions || null;
+                currentState.admin_users = state.admin_users || [];
+                applyPermissionsUI();
+                if (document.getElementById('admin-overlay')?.classList.contains('active')) {
+                    renderAdminUsersTable();
+                }
                 currentState.target_user = state.target_user;
+                currentState.target_group_id = state.target_group_id;
+                currentState.chat_mode = state.chat_mode || 'dm';
                 currentState.chat_active = state.chat_active;
+                currentState.connected = state.connected;
+                currentState.reconnecting = !!state.reconnecting;
                 updateDLP();
 
             } catch (e) {
@@ -559,10 +1535,19 @@
         setInterval(pollState, 1000);
         setInterval(() => {
             if (currentState.username) apiCall('/api/refresh_users', {});
-        }, 3000); // Poll server every 3 seconds for updated users
-        
+        }, 3000);
+
         window.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            document.querySelectorAll('.overlay').forEach(el => el.classList.remove('active'));
+            resetTotpSetupState();
+            apiCall('/api/connect', {});
             pollState();
+            const ta = document.getElementById('msg-input');
+            if (ta) {
+                ta.addEventListener('keydown', handleComposerKeydown);
+                ta.addEventListener('input', autosizeMsgInput);
+            }
         });
     </script>
 </body>
